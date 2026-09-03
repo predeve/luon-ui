@@ -227,3 +227,7 @@ Protect technical identifiers from browser translation.
 - [UI and styling guide](https://docs.luon.dev/frontend/ui)
 - [Live UI examples](https://ui.luon.dev)
 - [CDN packages](https://cdn.luon.dev)
+
+## License
+
+[MIT](LICENSE) © predeve
