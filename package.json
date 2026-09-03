@@ -1,0 +1,57 @@
+{
+  "name": "@luon/ui",
+  "version": "0.7.7",
+  "description": "Native View UI for Luon sites",
+  "keywords": [
+    "luon",
+    "ui",
+    "components",
+    "tsx",
+    "typescript",
+    "frontend"
+  ],
+  "homepage": "https://pkg.luon.dev/packages/ui/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/predeve/luon-ui.git"
+  },
+  "bugs": {
+    "url": "https://github.com/predeve/luon/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://pkg.luon.dev"
+  },
+  "type": "module",
+  "files": [
+    "LICENSE.lucide",
+    "src"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./base": "./src/base.view.js",
+    "./chart": "./src/chart.ts",
+    "./code-editor": "./src/code-editor.ts",
+    "./data-table": "./src/data-table.ts",
+    "./draggable": "./src/draggable.ts",
+    "./editor": "./src/editor.ts",
+    "./loader": "./src/loader.ts",
+    "./sortable": "./src/sortable.ts",
+    "./term": "./src/term.tsx",
+    "./terms": "./src/terms.ts",
+    "./translate": "./src/translate.ts",
+    "./style.css": "./src/style.css"
+  },
+  "dependencies": {
+    "@luon/rule": "0.1.1",
+    "@luon/view": "0.0.17",
+    "lucide": "1.38.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/bun": "^1.4.0",
+    "happy-dom": "^20.12.0",
+    "postcss": "^8.5.26",
+    "tailwindcss": "4.3.3"
+  }
+}
