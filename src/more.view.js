@@ -3,7 +3,7 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "@luon/view/js
 import { liveView as live, passProps, state, } from "@luon/view";
 import { Icon } from "./icon.view.js";
 import { tones } from "./skin.ts";
-import { $, itemsOf, model, place, read, target, } from "./util.ts";
+import { $, itemsOf, model, place, read, resetPlace, target, } from "./util.ts";
 import { uiProps } from "./props.ts";
 import { bindView as __bind, liveView as __live, namedViews as __namedViews } from "@luon/view";
 const font = "font-[family-name:var(--lui-font)] $text";
@@ -194,6 +194,7 @@ export const { Carousel, Marquee, Tree, DropdownMenu, ContextMenu, Calendar, } =
                 event.preventDefault();
                 if (!menu)
                     return;
+                resetPlace(menu);
                 menu.style.left = `${event.clientX}px`;
                 menu.style.top = `${event.clientY}px`;
                 menu.showPopover?.();

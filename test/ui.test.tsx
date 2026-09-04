@@ -682,6 +682,8 @@ test("uses native select and table with accessible accordion regions", () => {
 test("places select menus beside the trigger without covering it", () => {
   const menu = document.createElement("div");
   const trigger = document.createElement("button");
+  menu.style.bottom = "0px";
+  menu.style.right = "0px";
   trigger.getBoundingClientRect = () => ({
     bottom: 340,
     height: 40,
@@ -694,13 +696,17 @@ test("places select menus beside the trigger without covering it", () => {
     toJSON: () => ({}),
   });
   Object.defineProperty(menu, "offsetWidth", { value: 200 });
+  Object.defineProperty(menu, "offsetHeight", { value: 120 });
   Object.defineProperty(menu, "scrollHeight", { value: 600 });
 
   place(menu, trigger, "start", 200);
 
   expect(menu.style.top).toBe("346px");
+  expect(menu.style.bottom).toBe("auto");
+  expect(menu.style.height).toBe("auto");
   expect(menu.style.maxHeight).toBe("446px");
-  expect(menu.style.overflowY).toBe("auto");
+  expect(menu.style.overflowY).toBe("");
+  expect(menu.style.right).toBe("auto");
 });
 
 test("places floating content on an explicit side", () => {

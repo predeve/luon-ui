@@ -44,8 +44,8 @@
     "./style.css": "./src/style.css"
   },
   "dependencies": {
-    "@luon/rule": "0.1.1",
-    "@luon/view": "0.0.17",
+    "@luon/rule": "0.1.3",
+    "@luon/view": "0.0.19",
     "lucide": "1.38.0"
   },
   "devDependencies": {

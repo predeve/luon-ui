@@ -15,6 +15,7 @@ import {
   model,
   place,
   read,
+  resetPlace,
   target,
 } from "./util.ts";
 
@@ -290,6 +291,7 @@ export function ContextMenu(props: UiProps) {
     onContextMenu={(event: MouseEvent) => {
       event.preventDefault();
       if (!menu) return;
+      resetPlace(menu);
       menu.style.left = `${event.clientX}px`;
       menu.style.top = `${event.clientY}px`;
       menu.showPopover?.();

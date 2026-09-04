@@ -96,6 +96,15 @@ export function target<ElementType extends Element>(event: Event) {
   return event.currentTarget as ElementType;
 }
 
+export function resetPlace(menu: HTMLElement) {
+  menu.style.bottom = "auto";
+  menu.style.height = "auto";
+  menu.style.left = "auto";
+  menu.style.margin = "0";
+  menu.style.right = "auto";
+  menu.style.top = "auto";
+}
+
 export function place(
   menu: HTMLElement,
   trigger: Element,
@@ -103,6 +112,7 @@ export function place(
   width?: string | number,
   side = "auto",
 ) {
+  resetPlace(menu);
   const rect = trigger.getBoundingClientRect();
   if (width !== undefined) {
     menu.style.width = typeof width === "number" ? `${width}px` : width;
@@ -111,7 +121,7 @@ export function place(
   const menuWidth = menu.offsetWidth || rect.width;
   menu.style.maxHeight = "";
   menu.style.overflowY = "";
-  const menuHeight = menu.scrollHeight || menu.offsetHeight;
+  const menuHeight = menu.offsetHeight || menu.scrollHeight;
   if (side === "left" || side === "right") {
     const preferred = align === "end"
       ? rect.bottom - menuHeight : rect.top;
