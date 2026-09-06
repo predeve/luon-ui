@@ -398,4 +398,4 @@ export const { CheckboxGroup, InputNumber, InputTags, FileUpload, InputRating, L
                     return values.map((entry) => _jsx("input", { disabled: props.disabled, name: props.name, type: "hidden", value: String(entry) }));
                 }) : null] });
     },
-}, (name) => __specs[name]);
+}, (name) => __specs[name], { "file": "/Users/predeve/Developer/luon.dev/luon-packages/ui/src/form.tsx" });

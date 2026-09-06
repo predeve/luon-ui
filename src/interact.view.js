@@ -393,4 +393,4 @@ export const { Collapsible, NavigationMenu, CommandPalette, Tabs, Pagination, St
                             : props.children] }), props.actions?.map((item) => _jsxs("button", { class: $("rounded-md border $line px-2 py-1 text-xs", "font-medium $hoverSoft disabled:opacity-50"), disabled: item.disabled, type: "button", onClick: item.onClick, children: [item.icon ? _jsx(Icon, { name: item.icon }) : null, item.label
                             ?? item.children] })), props.close === false ? null : _jsx("button", { "aria-label": "Close", class: $("rounded p-1 $hoverSoft"), type: "button", onClick: () => open.value = false, children: _jsx(Icon, { name: "x" }) })] }) : null);
     },
-}, (name) => __specs[name]);
+}, (name) => __specs[name], { "file": "/Users/predeve/Developer/luon.dev/luon-packages/ui/src/interact.tsx" });

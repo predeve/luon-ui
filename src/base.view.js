@@ -437,4 +437,4 @@ export const { Text, Badge, Chip, Kbd, Separator, Textarea, Select, Checkbox, Sw
                                     ? "px-5 pb-5" : "px-4 pb-4"), children: props.content?.(item, index) ?? item.content
                                     ?? item.children ?? item.description }) }) })] })) });
     },
-}, (name) => __specs[name]);
+}, (name) => __specs[name], { "file": "/Users/predeve/Developer/luon.dev/luon-packages/ui/src/base.tsx" });

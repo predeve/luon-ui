@@ -11,4 +11,4 @@ export default __component("Table", (props) => {
             return __view(__props);
         }
     };
-}, __spec);
+}, __spec, { "file": "/Users/predeve/Developer/luon.dev/luon-packages/ui/src/table.view.tsx" });

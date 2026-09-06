@@ -99,4 +99,4 @@ export const { Icon, } = __namedViews({
         }
         return svg;
     },
-}, (name) => __specs[name]);
+}, (name) => __specs[name], { "file": "/Users/predeve/Developer/luon.dev/luon-packages/ui/src/icon.tsx" });

@@ -1,6 +1,6 @@
 /** @jsxImportSource @luon/view */
 import {
-  effectView as effect, liveView as live, state, untrackView,
+  liveView as live, memoView, state, untrackView,
 } from "@luon/view";
 import {
   cellText, cellValue, columnKey, columnTitle, fieldValue,
@@ -28,17 +28,10 @@ export function renderTable(props: TableProps) {
   const visible = () => columns().filter((c) => (
     !local.hidden.includes(columnKey(c))
   ));
-  const compute = () => tablePage(
+  const page = memoView(() => tablePage(
     rows(), columns(), query(), options, props.manual,
     read(props.total ?? rows().length), props.locale,
-  );
-  const cached = state({ value: untrackView(compute) });
-  let stop: (() => void) | undefined;
-  const connect = (node: Element | null) => {
-    stop?.();
-    stop = node ? effect(() => { cached.value = compute(); }) : undefined;
-  };
-  const page = () => cached.value;
+  ));
   const busy = () => Boolean(read(props.loading ?? false));
   const selected = () => read(props.selected ?? local.selected);
   const rowKey = (row: Record<string, any>) => {
@@ -146,7 +139,7 @@ export function renderTable(props: TableProps) {
       disabled={live(() => busy() || disabled())}
       onClick={() => update({ page: to() })}
     >{symbol}</button>;
-  return <div class="lui-table-root" ref={connect}
+  return <div class="lui-table-root"
     data-density={props.density ?? "normal"}
     data-striped={props.striped || undefined}
     data-hover={props.hover || undefined}

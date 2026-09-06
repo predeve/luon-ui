@@ -65,4 +65,4 @@ export default __component("Button", (props) => {
             return __view(__props);
         }
     };
-}, __spec);
+}, __spec, { "file": "/Users/predeve/Developer/luon.dev/luon-packages/ui/src/button.view.tsx" });

@@ -508,4 +508,4 @@ export const { Draggable, Sortable, } = __namedViews({
         const Tag = props.tag || "div";
         return _jsx(Tag, { ...props.$attrs, "aria-disabled": props.disabled || undefined, class: ["lui-sortable", props.className ?? props.class], ref: ref, style: props.style, onPointerDown: (event) => sortDown(event, sort), children: props.children });
     },
-}, (name) => __specs[name]);
+}, (name) => __specs[name], { "file": "/Users/predeve/Developer/luon.dev/luon-packages/ui/src/drag.tsx" });

@@ -10,4 +10,4 @@ export const { Term, } = __namedViews({
         const Tag = props.as || "span";
         return _jsx(Tag, { ...props.$attrs, class: "notranslate", "data-luon-term": "", translate: "no", children: props.children });
     },
-}, (name) => __specs[name]);
+}, (name) => __specs[name], { "file": "/Users/predeve/Developer/luon.dev/luon-packages/ui/src/term.tsx" });
