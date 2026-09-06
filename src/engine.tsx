@@ -55,71 +55,11 @@ function stateText(status: { value: string }, name: string): Child {
 export type { ChartProps } from "./chart-data.ts";
 export type ChartSvgProps = ChartProps;
 
-export type DataColumn<Row = Record<string, unknown>> = {
-  data?: keyof Row | string;
-  key?: keyof Row | string;
-  name?: string;
-  title: string;
-};
-
-export type DataTableProps<Row = Record<string, unknown>> = UiProps & {
-  columns: DataColumn<Row>[];
-  options?: Record<string, unknown>;
-  rows: Live<Row[]>;
-};
-
-type TableApi = {
-  clear(): TableApi;
-  destroy(remove?: boolean): void;
-  draw(reset?: boolean): TableApi;
-  rows: { add(rows: unknown[]): TableApi };
-};
-type TableClass = new (
-  table: HTMLTableElement,
-  options: Record<string, unknown>,
-) => TableApi;
-
-export function DataTable<Row = Record<string, unknown>>(
-  props: DataTableProps<Row>,
-) {
-  const status = state({ value: "loading" as const }) as {
-    value: "error" | "loading" | "ready";
-  };
-  const ref = connect<HTMLTableElement>(async (node) => {
-    const [, module] = await Promise.all([
-      loadStyle("/ui/v2/data-table.css"),
-      loadModule<{ default: TableClass }>("/ui/v2/data-table.mjs"),
-    ]);
-    const table = new module.default(node, {
-      columns: props.columns.map((column) => ({
-        ...column,
-        data: String(column.data ?? column.key ?? column.name ?? ""),
-      })),
-      data: read(props.rows),
-      lengthMenu: [5, 10, 25, 50, 100],
-      responsive: true,
-      ...props.options,
-    });
-    let initial = true;
-    const stop = effect(() => {
-      const rows = [...read(props.rows)];
-      if (initial) {
-        initial = false;
-        return;
-      }
-      table.clear();
-      table.rows.add(rows).draw(false);
-    });
-    return () => {
-      stop();
-      table.destroy();
-    };
-  }, status);
-  return <div class={"lui-data-table relative min-h-32"}>
-    <table class="display" ref={ref} />
-    {stateText(status, "Data table")}
-  </div>;
-}
+/** @deprecated Use Table and its native options. */
+export { default as DataTable } from "./table.view.js";
+export type {
+  TableColumn as DataColumn, TableProps as DataTableProps,
+} from "./table-data.ts";
 
 export type EditorApi = {
   commands: {

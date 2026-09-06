@@ -4,6 +4,7 @@ import { effectView as effect, liveView as live, state, } from "@luon/view";
 import { Icon } from "./icon.view.js";
 import { loadModule, loadStyle } from "./loader.ts";
 import { change, $, read, valueOf } from "./util.ts";
+export { default as DataTable } from "./table.view.js";
 import { uiProps } from "./props.ts";
 import { bindView as __bind, liveView as __live, namedViews as __namedViews } from "@luon/view";
 function connect(run, status) {
@@ -151,45 +152,10 @@ function codeDark(node, props) {
     return Boolean(node.closest('[data-theme="dark"], .lui-dark'));
 }
 const __specs = {
-    DataTable: uiProps("DataTable"),
     Editor: uiProps("Editor"),
     CodeEditor: uiProps("CodeEditor"),
 };
-export const { DataTable, Editor, CodeEditor, } = __namedViews({
-    DataTable: function DataTable(props) {
-        const status = state({ value: "loading" });
-        const ref = connect(async (node) => {
-            const [, module] = await Promise.all([
-                loadStyle("/ui/v2/data-table.css"),
-                loadModule("/ui/v2/data-table.mjs"),
-            ]);
-            const table = new module.default(node, {
-                columns: props.columns.map((column) => ({
-                    ...column,
-                    data: String(column.data ?? column.key ?? column.name ?? ""),
-                })),
-                data: read(props.rows),
-                lengthMenu: [5, 10, 25, 50, 100],
-                responsive: true,
-                ...props.options,
-            });
-            let initial = true;
-            const stop = effect(() => {
-                const rows = [...read(props.rows)];
-                if (initial) {
-                    initial = false;
-                    return;
-                }
-                table.clear();
-                table.rows.add(rows).draw(false);
-            });
-            return () => {
-                stop();
-                table.destroy();
-            };
-        }, status);
-        return _jsxs("div", { class: "lui-data-table relative min-h-32", children: [_jsx("table", { class: "display", ref: ref }), stateText(status, "Data table")] });
-    },
+export const { Editor, CodeEditor, } = __namedViews({
     Editor: function Editor(props) {
         const status = state({ value: "loading" });
         const current = state({

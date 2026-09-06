@@ -1,2 +1,5 @@
-export { DataTable, DataTable as default } from "./engine.view.js";
-export type { DataColumn, DataTableProps } from "./engine.tsx";
+/** @deprecated Import Table from @luon/ui/table. */
+export { default, default as DataTable } from "./table.view.js";
+export type {
+  TableColumn as DataColumn, TableProps as DataTableProps,
+} from "./table-data.ts";

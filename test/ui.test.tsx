@@ -675,7 +675,7 @@ test("uses native select and table with accessible accordion regions", () => {
   expect(document.querySelector("[role=region]")?.textContent)
     .toContain("Act");
   expect(document.querySelector(".lui-table-wrap")?.getAttribute("class"))
-    .toContain("border border-[var(--lui-line)]");
+    .toContain("lui-table-wrap");
   expect(document.querySelector("table")?.textContent).toContain("Luon");
   expect([...document.querySelectorAll("th")].map((node) => node.textContent))
     .toEqual(["Id", "Name"]);
@@ -1493,7 +1493,7 @@ test("ships compiled Tailwind utilities inside the package", async () => {
   expect(css).toContain(".inline-flex");
   expect(css).toContain(".lui-editor-body .tiptap");
   expect(css).toContain(".lui-editor-toolbar");
-  expect(css).toContain(".lui-data-table .dt-layout-table");
+  expect(css).toContain(".lui-table-root");
   expect(css).toContain("--luon-scroll-size:0px");
   expect(css).toContain("--luon-scroll-thumb:transparent");
   expect(css).toContain("--luon-scroll-width:none");
@@ -1504,11 +1504,11 @@ test("ships compiled Tailwind utilities inside the package", async () => {
 
 test("keeps external engines behind the Luon CDN boundary", () => {
   expect(typeof editorActive).toBe("function");
-  expect(cdnUrl("/ui/v2/chart.mjs"))
-    .toBe("https://cdn.luon.dev/ui/v2/chart.mjs");
+  expect(cdnUrl("/ui/v2/data-table.mjs"))
+    .toBe("https://cdn.luon.dev/ui/v2/data-table.mjs");
   globalThis.__LUON_CDN__ = "http://localhost:6010";
-  expect(cdnUrl("/ui/v2/chart.mjs"))
-    .toBe("http://localhost:6010/ui/v2/chart.mjs");
+  expect(cdnUrl("/ui/v2/data-table.mjs"))
+    .toBe("http://localhost:6010/ui/v2/data-table.mjs");
 
   const close = mount(
     <Chart data={{ datasets: [] }} type="line" />,

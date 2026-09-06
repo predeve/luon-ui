@@ -30,3 +30,7 @@ export type { FileReject, FileUploadProps, InputNumberProps } from "./form.tsx";
 export type { OverlayProps } from "./interact.tsx";
 export type { UiProps } from "./types.ts";
 export type { ButtonProps, InputProps } from "./props.ts";
+
+export type {
+  TableColumn, TableOptions, TableProps, TableQuery, TableSort,
+} from "./table-data.ts";

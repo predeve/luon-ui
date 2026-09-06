@@ -87,7 +87,9 @@ const omit: Record<string, string[]> = {
   Textarea: ["autoresize", "defaultValue", "size", "variant", "color",
     "error", "maxRows", "resize"],
   Table: ["caption", "columns", "data", "density", "empty", "hover",
-    "loading", "rows", "slotEmpty", "slotLoading", "sticky", "striped"],
+    "loading", "rows", "slotEmpty", "slotLoading", "sticky", "striped",
+    "options", "query", "defaultQuery", "onQueryChange", "manual", "total",
+    "rowKey", "selected", "onSelectionChange", "ariaLabel", "height", "locale"],
 };
 export function uiProps(name: string) {
   const fields: Record<string, any> = {};

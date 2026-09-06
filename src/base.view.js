@@ -7,6 +7,7 @@ import Button from "./button.view.js";
 import Input from "./input.view.js";
 import { control, controlSkin, focus, font, sizes, tones } from "./skin.ts";
 import { $, itemsOf, model, pick, read, target, valueOf, } from "./util.ts";
+export { default as Table } from "./table.view.js";
 import { uiProps } from "./props.ts";
 import { bindView as __bind, liveView as __live, namedViews as __namedViews } from "@luon/view";
 const badgeKinds = {
@@ -51,12 +52,6 @@ const toneBox = {
     success: "[--lui-tone:var(--lui-success)]",
     warning: "[--lui-tone:var(--lui-warning)]",
 };
-function tableLabel(key) {
-    return key
-        .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-        .replace(/[-_]+/g, " ")
-        .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
 const __specs = {
     Text: uiProps("Text"),
     Badge: uiProps("Badge"),
@@ -88,9 +83,8 @@ const __specs = {
     Link: uiProps("Link"),
     Breadcrumb: uiProps("Breadcrumb"),
     Accordion: uiProps("Accordion"),
-    Table: uiProps("Table"),
 };
-export const { Text, Badge, Chip, Kbd, Separator, Textarea, Select, Checkbox, Switch, RadioGroup, Slider, FormField, FieldGroup, ColorPicker, InputTime, InputDate, Alert, Banner, Avatar, AvatarGroup, Card, Progress, ProgressGroup, Skeleton, Empty, ScrollArea, User, Link, Breadcrumb, Accordion, Table, } = __namedViews({
+export const { Text, Badge, Chip, Kbd, Separator, Textarea, Select, Checkbox, Switch, RadioGroup, Slider, FormField, FieldGroup, ColorPicker, InputTime, InputDate, Alert, Banner, Avatar, AvatarGroup, Card, Progress, ProgressGroup, Skeleton, Empty, ScrollArea, User, Link, Breadcrumb, Accordion, } = __namedViews({
     Text: function Text(props) {
         const Tag = props.as || "span";
         const base = $("lui-text leading-relaxed", font, colors[props.color || "default"], textSizes[props.size || "md"], weights[props.weight || "normal"]);
@@ -442,20 +436,5 @@ export const { Text, Badge, Chip, Kbd, Separator, Textarea, Select, Checkbox, Sw
                             : "grid-rows-[0fr] opacity-0")), id: `${name}-${index}`, role: "region", style: { transitionDuration: duration }, children: _jsx("div", { class: "min-h-0 overflow-hidden", children: _jsx("div", { class: $("text-sm $muted", props.size === "sm" ? "px-3 pb-3" : props.size === "lg"
                                     ? "px-5 pb-5" : "px-4 pb-4"), children: props.content?.(item, index) ?? item.content
                                     ?? item.children ?? item.description }) }) })] })) });
-    },
-    Table: function Table(props) {
-        const rows = props.data || props.rows || [];
-        const columns = props.columns || Object.keys(rows[0] || {}).map((key) => ({
-            key,
-            label: tableLabel(key),
-        }));
-        const padding = props.density === "compact" ? "px-3 py-1.5"
-            : props.density === "comfortable" ? "px-4 py-4" : "px-3 py-2.5";
-        return _jsx("div", { class: $("lui-table-wrap overflow-x-auto $radius", "border $line"), children: _jsxs("table", { class: $("lui-table w-full border-collapse text-left text-sm", font), "aria-busy": props.loading || undefined, children: [props.caption ? _jsx("caption", { class: $("caption-bottom p-3 text-sm $muted"), children: props.caption }) : null, _jsx("thead", { class: $("$soft", props.sticky && "sticky top-0 z-10"), children: _jsx("tr", { children: columns.map((column) => _jsx("th", { scope: "col", class: $("border-b $line font-medium", padding), children: column.label || column.header || column.title })) }) }), _jsx("tbody", { children: props.loading || !rows.length ? _jsx("tr", { children: _jsx("td", { colspan: Math.max(1, columns.length), class: $("px-4 py-12 text-center $muted"), children: _jsx("div", { role: "status", children: props.loading
-                                        ? props.slotLoading?.() || "Loading…"
-                                        : props.slotEmpty?.() || props.empty || "No results." }) }) }) : rows.map((row) => _jsx("tr", { class: $("border-b $line last:border-0 transition-colors", props.striped && "even:bg-[var(--lui-soft)]", props.hover && "$hoverSoft"), children: columns.map((column) => {
-                                const key = column.key || column.accessorKey;
-                                return _jsx("td", { class: padding, children: column.cell ? column.cell(row) : row[key] });
-                            }) })) })] }) });
     },
 }, (name) => __specs[name]);

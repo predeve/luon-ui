@@ -206,15 +206,87 @@
   -webkit-text-fill-color: var(--lui-on-primary);
 }
 
-.lui-data-table .dt-layout-table > .dt-layout-cell {
-  overflow: hidden;
-  border: 1px solid var(--lui-line);
+/* Native Table: optional controls share the semantic component tokens. */
+.lui-table-root {
+  width: 100%; min-width: 0; color: var(--lui-text); font-size: .875rem;
+}
+.lui-table-wrap {
+  overflow: auto; border: 1px solid var(--lui-line);
   border-radius: var(--lui-radius);
 }
-
-.lui-data-table .dt-layout-table table.dataTable {
-  border: 0 !important;
+.lui-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.lui-table th, .lui-table td {
+  padding: .65rem .85rem; text-align: left;
+  border-bottom: 1px solid var(--lui-line);
 }
+.lui-table th { font-weight: 500; white-space: nowrap; }
+.lui-table thead { background: var(--lui-soft); }
+.lui-table thead[data-sticky] { position: sticky; top: 0; z-index: 1; }
+.lui-table tbody tr:last-child td { border-bottom: 0; }
+.lui-table caption { caption-side: bottom; padding: .75rem; }
+.lui-table caption, .lui-table-footer { color: var(--lui-muted); }
+.lui-table-root[data-density="compact"] :is(th, td) { padding: .4rem .75rem; }
+.lui-table-root[data-density="comfortable"] :is(th, td) { padding: 1rem; }
+.lui-table-root[data-striped] tbody tr:nth-child(even),
+.lui-table-root[data-hover] tbody tr:hover { background: var(--lui-soft); }
+.lui-table tbody tr[aria-selected="true"] {
+  background: color-mix(in srgb, var(--lui-primary) 10%, var(--lui-bg));
+}
+.lui-table td.lui-table-empty { padding: 3rem 1rem; text-align: center; }
+.lui-table .lui-table-check { width: 2.75rem; text-align: center; }
+.lui-table-root input[type="checkbox"] { accent-color: var(--lui-primary); }
+.lui-table-tools, .lui-table-footer, .lui-table-pages,
+.lui-table-pages nav, .lui-table-pages label, .lui-table-search {
+  display: flex; align-items: center; gap: .65rem;
+}
+.lui-table-tools, .lui-table-footer { justify-content: space-between; }
+.lui-table-tools { margin-bottom: .8rem; }
+.lui-table-footer { margin-top: .8rem; font-size: .75rem; }
+.lui-table-footer, .lui-table-pages { flex-wrap: wrap; }
+.lui-table-pages { margin-left: auto; }
+.lui-table-search { max-width: 24rem; flex: 1; }
+.lui-table-search span { color: var(--lui-muted); }
+.lui-table-root :is(input[type="search"], select) {
+  min-width: 0; border: 1px solid var(--lui-line);
+  border-radius: .5rem; padding: .45rem .65rem;
+  background: var(--lui-bg); color: var(--lui-text);
+  outline: 2px solid transparent; outline-offset: 2px;
+}
+.lui-table-search input { width: 100%; }
+.lui-table-root input::placeholder { color: var(--lui-muted); }
+.lui-table-root :is(input[type="search"], select):focus-visible {
+  border-color: var(--lui-primary);
+}
+.lui-table-root select { padding-right: 2rem; }
+.lui-table-sort {
+  display: inline-flex; align-items: center; justify-content: space-between;
+  width: 100%; gap: .8rem; border: 0; background: transparent;
+  color: inherit; text-align: inherit; cursor: pointer; padding: 0;
+}
+.lui-table-sort span { color: var(--lui-muted); font-size: .75rem; }
+.lui-table-root :is(button, summary):focus-visible,
+.lui-table-wrap:focus-visible {
+  outline: 2px solid var(--lui-primary); outline-offset: 2px;
+}
+.lui-table-root button:disabled { cursor: default; opacity: .4; }
+.lui-table-pages nav button, .lui-table-columns summary {
+  border: 1px solid var(--lui-line); border-radius: .5rem;
+  background: var(--lui-bg); color: var(--lui-text); cursor: pointer;
+  padding: .35rem .65rem; min-height: 2rem;
+}
+.lui-table-pages nav span { min-width: 3rem; text-align: center; }
+.lui-table-pages nav button:hover:not(:disabled) {
+  background: var(--lui-soft);
+}
+.lui-table-columns { position: relative; margin-left: auto; }
+.lui-table-columns > div {
+  position: absolute; right: 0; top: calc(100% + .5rem); z-index: 3;
+  min-width: 12rem; padding: .6rem; border: 1px solid var(--lui-line);
+  border-radius: var(--lui-radius); background: var(--lui-bg);
+  box-shadow: 0 8px 24px #0002;
+}
+.lui-table-columns label { display: flex; gap: .6rem; padding: .4rem; }
+.lui-table-filters :is(input, select) { width: 100%; font-weight: 400; }
 
 .lui-editor-tools button {
   display: grid;

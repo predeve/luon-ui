@@ -24,7 +24,8 @@ View components, props, icons, and shared styles ship in the package; large brow
 
 ### Lazy browser engines
 
-DataTable, Editor, and CodeEditor load their CDN engines when first rendered.
+Editor and CodeEditor load their CDN engines when first rendered.
+Chart and Table are native components with no CDN engine.
 Chart renders native SVG and needs no external chart engine.
 
 ### Site-owned theme
@@ -67,7 +68,7 @@ Start with a family, then inspect its live variants on ui.luon.dev.
 | Navigation | Breadcrumb, Tabs, Pagination, Stepper |
 | Overlays | Modal, Drawer, Popover, Tooltip, Toast |
 | Interaction | Draggable, Sortable, DropdownMenu, Tree |
-| Data and editing | Chart, DataTable, Editor, CodeEditor |
+| Data and editing | Chart, Table, Editor, CodeEditor |
 
 ### Engine-backed components
 
@@ -75,7 +76,6 @@ Only these features load a larger versioned browser engine.
 
 | Component | Engine | Load point |
 | --- | --- | --- |
-| DataTable | DataTables | First DataTable mount |
 | Editor | Tiptap | First Editor mount |
 | CodeEditor | CodeMirror | First CodeEditor mount |
 
@@ -100,7 +100,7 @@ Prefer the smallest override that expresses the product design.
 | Textarea | Control variants, resize, autoresize and maxRows |
 | SelectMenu | Search, groups, multiple values, clear, custom items and values |
 | Card | Outline, soft, subtle, elevated, ghost; three sizes and header slots |
-| Table | Density, stripes, hover, sticky header, caption, loading and empty |
+| Table | JSON columns, sorting, filters, selection, paging, custom cells |
 
 Input addons can coexist with loading, clear and password actions. Disabled
 and read-only fields retain their values; clearing returns focus to the input.
@@ -182,7 +182,7 @@ export default () => <Card>
 
 ### Render typed table data
 
-Columns select named row values and options pass to DataTables.
+Columns select raw row values. Native options enable only the controls you need.
 
 ```tsx
 const columns = [
@@ -190,9 +190,9 @@ const columns = [
   { data: "status", title: "Status" },
 ];
 
-export default () => <DataTable
+export default () => <Table
   columns={columns}
-  options={{ pageLength: 5, searching: true }}
+  options={{ pagination: true, pageSize: 5, search: true, sortable: true }}
   rows={data.users}
 />;
 ```
@@ -285,9 +285,75 @@ Original values remain available for selection and tooltips. Scatter, bubble,
 bar and radial marks are not sampled. Benchmark large datasets for the target
 device; native SVG does not imply faster rendering than canvas.
 
-### `DataTable`
+### `Table`
 
-Typed responsive DataTables wrapper.
+Native HTML table, also available from `@luon/ui/table`. All controls are opt-in:
+
+```tsx
+import { Table, type TableColumn } from "@luon/ui";
+
+const columns: TableColumn[] = [
+  { key: "name", title: "Name" },
+  { key: "status", title: "Status", filter: ["Ready", "Pending"] },
+  { key: "amount", title: "Amount", type: "number", align: "right",
+    format: "number" },
+];
+const rows = [
+  { id: "a", name: "Gateway", status: "Ready", amount: 120 },
+  { id: "b", name: "Core", status: "Pending", amount: 80 },
+];
+
+<Table columns={columns} rows={rows} rowKey="id"
+  options={{ search: true, sortable: true, filters: true,
+    pagination: true, pageSize: 10, selection: true, columnToggle: true }} />
+```
+
+- `rows` (alias `data`) accepts an array or a View live value. Omit `columns`
+  to infer keys and readable headings from the first row. JSON objects can
+  configure all standard columns and options; no HTML strings are executed.
+- Column `key` supports nested paths such as `user.name`. `data`, `accessorKey`,
+  and `name` are key aliases; `label` and `header` are title aliases.
+- Column `type: "number" | "date" | "text"` controls stable sorting. Missing or
+  invalid values sort last in either direction. `value(row)` and `compare(a,b)`
+  customize data access and sorting; `cell(row)` customizes rendered content.
+  Search and sort use raw values, independently of cell markup.
+- `format: "number" | "percent" | "date"` formats display values; `locale`
+  selects the Intl locale. Dates should be ISO strings or Date instances.
+- `sortable: false` and `searchable: false` exclude individual columns from
+  those operations. `filter: true` enables text filtering; a string array
+  creates exact-match choices when `options.filters` is enabled.
+- `hidden`, `width`, and `align` configure columns. `options.columnToggle`
+  lets readers change visibility. Hidden columns remain searchable unless
+  `searchable: false` is set.
+- Click a heading to cycle ascending, descending, and unsorted. Shift-click
+  adds another sort column. Search matches all whitespace-separated words.
+- `options.pagination` enables one-based pages. `pageSize` defaults to 10;
+  `pageSizes` defaults to `[5, 10, 25, 50, 100]`. Search, filters, sorting, and
+  page size reset to page 1. Client data changes clamp the displayed page.
+- `query` is a controlled plain or live partial `TableQuery`:
+  `{ search, filters, sort: [{ key, direction }], page, pageSize }`.
+  Apply `onQueryChange(next)` to your state. Without `query`, the component
+  owns state initialized by `defaultQuery`; callbacks still report changes.
+- `manual` accepts one supplied page and a filtered `total`, skipping local
+  sorting, filtering, and slicing. Fetch your data in `onQueryChange`, update
+  `rows` and `total`, and use `loading` while waiting. Handle cancellation or
+  stale responses in your data layer. Initial fetching belongs to the caller.
+- `options.selection` requires a unique, stable string or number `rowKey`.
+  Select-all applies to the displayed page. `selected` and
+  `onSelectionChange(keys)` support controlled selection across pages.
+  Selected keys persist until cleared by the caller, including removed rows.
+- `density`, `striped`, `hover`, `caption`, `sticky`, and `height` shape the
+  presentation. Use a bounded `height` for sticky scrolling. `loading`,
+  `empty`, `slotLoading`, and `slotEmpty` cover data states; `ariaLabel`
+  names the table and its keyboard-scrollable region.
+
+The old `DataTable` export/subpath is a deprecated name alias for `Table`,
+with no separate engine. Migrate old `pageLength` to `pageSize`, `paging` to
+`pagination`, `searching` to `search`, and index-based `order` to a keyed
+`defaultQuery.sort`. Native controls are opt-in. DataTables plugins, its
+constructor API, automatic network requests, exports, and virtual rows are
+outside this component. Old package versions that load the retired CDN
+DataTables files must upgrade to 0.9.0 or later.
 
 ### `Draggable`
 

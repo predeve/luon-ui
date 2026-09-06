@@ -1,6 +1,6 @@
 {
   "name": "@luon/ui",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Native View UI for Luon sites",
   "license": "MIT",
   "keywords": [
@@ -41,6 +41,7 @@
     "./draggable": "./src/draggable.ts",
     "./editor": "./src/editor.ts",
     "./loader": "./src/loader.ts",
+    "./table": "./src/table.ts",
     "./sortable": "./src/sortable.ts",
     "./scroll.css": "./src/scroll.css",
     "./term": "./src/term.tsx",
