@@ -1,0 +1,30 @@
+:root {
+  --luon-scroll-size: 5px;
+  --luon-scroll-thumb: #8b949e;
+  --luon-scroll-track: transparent;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-color: var(--luon-scroll-thumb) var(--luon-scroll-track);
+    scrollbar-width: thin;
+  }
+}
+
+*::-webkit-scrollbar {
+  width: var(--luon-scroll-size);
+  height: var(--luon-scroll-size);
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--luon-scroll-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--luon-scroll-thumb);
+}
+
+*::-webkit-scrollbar-corner {
+  background: var(--luon-scroll-track);
+}

@@ -2,7 +2,7 @@
 import { liveView as live, state, type Child } from "@luon/view";
 
 import { Icon } from "./icon.view.js";
-import { tones } from "./skin.ts";
+import { focus, font, tones } from "./skin.ts";
 import type { Item, UiProps } from "./types.ts";
 import {
   $,
@@ -14,10 +14,6 @@ import {
   target,
   valueOf,
 } from "./util.ts";
-
-const font = "font-[family-name:var(--lui-font)] $text";
-const focus = "focus-visible:outline-3 focus-visible:outline-offset-1 "
-  + "focus-visible:outline-[var(--lui-primary)]";
 
 let nextId = 0;
 
@@ -112,9 +108,10 @@ export function NavigationMenu(props: UiProps) {
 }
 
 export function CommandPalette(props: UiProps) {
+  const id = `lui-command-${++nextId}`;
   const items = itemsOf(props.items);
   const query = state({ value: "" });
-  const cursor = state({ value: 0 });
+  const cursor = state({ value: items.findIndex((item) => !item.disabled) });
   const found = () => {
     const needle = query.value.trim().toLocaleLowerCase();
     return needle ? items.filter((item) => (
@@ -123,13 +120,15 @@ export function CommandPalette(props: UiProps) {
     )) : items;
   };
   const choose = (item: any) => {
+    if (props.disabled || item.disabled) return;
     item.onSelect?.(item);
     props.onSelect?.(item);
     props.onChange?.(item.value);
   };
   const results = live(() => {
     const values = found();
-    if (!values.length) return <div class="grid justify-items-center gap-2 p-6">
+    if (!values.length) return <div class="grid justify-items-center gap-2 p-6"
+      role="status">
       <Icon class={$("$muted")} name="search-x" size={22} />
       <small class={$("$muted")}>
         {props.empty || "No commands found"}
@@ -137,14 +136,18 @@ export function CommandPalette(props: UiProps) {
     </div>;
     return values.map((item: any, index) => <button
       aria-selected={cursor.value === index}
+      disabled={props.disabled || item.disabled}
+      id={`${id}-${index}`}
       class={$(
         "flex items-center gap-3 rounded-md px-3 py-2.5 text-left",
+        "disabled:opacity-40",
         cursor.value === index ? "$soft $text" : "$muted $hoverSoft",
       )}
       role="option"
+      tabindex={-1}
       type="button"
       onClick={() => choose(item)}
-      onMouseEnter={() => cursor.value = index}
+      onMouseEnter={() => { if (!item.disabled) cursor.value = index; }}
     >
       <span class={$(
         "grid size-8 shrink-0 place-items-center rounded $soft",
@@ -165,23 +168,38 @@ export function CommandPalette(props: UiProps) {
     <label class={$("flex items-center gap-2 border-b $line px-3")}>
       <Icon class={$("$muted")} name="search" />
       <input
+        aria-activedescendant={live(() => {
+          const item = found()[cursor.value];
+          return item && !item.disabled ? `${id}-${cursor.value}` : undefined;
+        })}
+        aria-controls={`${id}-list`}
+        aria-expanded="true"
         aria-label={props["aria-label"] || "Search commands"}
+        disabled={props.disabled}
+        role="combobox"
         class="min-h-11 min-w-0 flex-1 bg-transparent text-sm outline-none"
         placeholder={props.placeholder || "Type a command…"}
         value={live(() => query.value)}
         onInput={(event: Event) => {
           query.value = target<HTMLInputElement>(event).value;
-          cursor.value = 0;
+          cursor.value = found().findIndex((item) => !item.disabled);
         }}
         onKeyDown={(event: KeyboardEvent) => {
+          if (event.isComposing || props.disabled) return;
           const values = found();
-          if (event.key === "ArrowDown") {
+          const enabled = values.map((item, index) => item.disabled ? -1 : index)
+            .filter((index) => index >= 0);
+          const at = enabled.indexOf(cursor.value);
+          if (event.key === "ArrowDown" || event.key === "ArrowUp"
+            || event.key === "Home" || event.key === "End") {
             event.preventDefault();
-            cursor.value = (cursor.value + 1) % Math.max(1, values.length);
-          } else if (event.key === "ArrowUp") {
-            event.preventDefault();
-            cursor.value = (cursor.value - 1 + Math.max(1, values.length))
-              % Math.max(1, values.length);
+            const step = event.key === "ArrowDown" ? 1 : -1;
+            cursor.value = event.key === "Home" ? enabled[0] ?? -1
+              : event.key === "End" ? enabled.at(-1) ?? -1
+              : at < 0 ? (step > 0 ? enabled[0] : enabled.at(-1)) ?? -1
+              : enabled[(at + step + enabled.length) % enabled.length] ?? -1;
+            document.getElementById(`${id}-${cursor.value}`)
+              ?.scrollIntoView?.({ block: "nearest" });
           } else if (event.key === "Enter" && values[cursor.value]) {
             event.preventDefault();
             choose(values[cursor.value]);
@@ -189,7 +207,8 @@ export function CommandPalette(props: UiProps) {
         }}
       />
     </label>
-    <div class="grid max-h-72 gap-1 overflow-y-auto p-1" role="listbox">
+    <div class="grid max-h-72 gap-1 overflow-y-auto p-1" role="listbox"
+      id={`${id}-list`} aria-label={props.label || "Commands"}>
       {results}
     </div>
   </section>;
@@ -397,7 +416,7 @@ export function Pagination(props: UiProps) {
         value === page()
           ? props.variant === "subtle"
             ? "$actionSoft $actionText font-semibold"
-            : "$actionBg text-white"
+            : "$actionBg text-[var(--lui-on-action)]"
           : "$hoverSoft",
       )}
       disabled={props.disabled}
@@ -479,7 +498,7 @@ const drawerClass: Record<string, string> = {
   top: "mb-auto mt-0 w-full max-w-none rounded-t-none",
 };
 
-function showDialog(node: HTMLDialogElement) {
+function showDialog(node: HTMLDialogElement, initialFocus?: string) {
   queueMicrotask(() => {
     if (!node.isConnected) return;
     try {
@@ -487,10 +506,18 @@ function showDialog(node: HTMLDialogElement) {
     } catch {
       node.open = true;
     }
+    if (initialFocus) node.querySelector<HTMLElement>(initialFocus)?.focus();
   });
 }
 
-function Overlay(props: UiProps & { kind: "drawer" | "modal" }): Child {
+export type OverlayProps = UiProps & {
+  size?: "sm" | "md" | "lg" | "xl";
+  initialFocus?: string;
+  restoreFocus?: boolean;
+  dismissible?: boolean;
+  width?: string | number;
+};
+function Overlay(props: OverlayProps & { kind: "drawer" | "modal" }): Child {
   const id = `lui-${props.kind}-${++nextId}`;
   const direction = props.direction || "right";
   const side = props.kind === "drawer"
@@ -500,11 +527,28 @@ function Overlay(props: UiProps & { kind: "drawer" | "modal" }): Child {
     Boolean(props.defaultOpen),
     props.open ?? valueOf(props),
   );
+  let panel: HTMLDialogElement | null = null;
+  let previous: HTMLElement | null = null;
+  let backdrop = false;
   const set = (value: boolean) => {
+    if (value === Boolean(read(current.value))) return;
+    if (value && props.disabled) return;
     current.set(value);
     props.onOpenChange?.(value);
     props["onUpdate:open"]?.(value);
   };
+  const launch = (event: MouseEvent) => {
+    previous = event.target instanceof Element
+      ? event.target.closest<HTMLElement>("button, a, [tabindex]") : null;
+    set(true);
+  };
+  const outside = (event: MouseEvent) => {
+    const rect = panel?.getBoundingClientRect();
+    return rect && (event.clientX < rect.left || event.clientX > rect.right
+      || event.clientY < rect.top || event.clientY > rect.bottom);
+  };
+  const widths = { sm: "max-w-sm", md: "max-w-xl",
+    lg: "max-w-3xl", xl: "max-w-5xl" };
   const trigger = props.slotTrigger?.() ?? props.trigger;
   const controlled = props.open !== undefined
     || props.modelValue !== undefined
@@ -513,22 +557,26 @@ function Overlay(props: UiProps & { kind: "drawer" | "modal" }): Child {
   const button = controlled && implicit ? null : trigger === undefined ? <button
     class={$(
       "$radius $primaryBg px-3 py-2",
-      "text-sm font-semibold text-white",
+      "text-sm font-semibold text-[var(--lui-on-primary)]",
     )}
+    disabled={props.disabled}
     type="button"
-    onClick={() => set(true)}
+    onClick={launch}
   >{props.label || "Open"}</button> : <span
     class="contents"
-    onClick={() => set(true)}
+    onClick={launch}
   >{trigger}</span>;
   const dialog = live(() => Boolean(read(current.value)) ? <dialog
+    aria-label={props["aria-label"]}
     aria-describedby={props.description ? `${id}-description` : undefined}
     aria-labelledby={props.title ? `${id}-title` : undefined}
     class={$(
       "lui-dialog fixed inset-0 m-auto max-h-[90dvh]",
-      "w-[min(36rem,calc(100%-2rem))]",
+      !props.fullscreen && (props.size
+        ? $("w-[calc(100%-2rem)]", widths[props.size])
+        : "w-[min(36rem,calc(100%-2rem))]"),
       "$radius border $line",
-      "$bg p-0 $text shadow-2xl",
+      "$bg p-0 $text shadow-[var(--lui-shadow-overlay)]",
       "backdrop:bg-black/50",
       props.scrollable && "overflow-hidden",
       props.fullscreen && $(
@@ -537,18 +585,43 @@ function Overlay(props: UiProps & { kind: "drawer" | "modal" }): Child {
       props.kind === "drawer" && drawerClass[direction],
       font,
     )}
+    style={!props.fullscreen && props.width ? {
+      width: typeof props.width === "number" ? `${props.width}px` : props.width,
+      maxWidth: "calc(100% - 1rem)",
+    } : undefined}
     ref={(node: Element | null) => {
-      if (node) showDialog(node as HTMLDialogElement);
+      if (node) {
+        panel = node as HTMLDialogElement;
+        previous ||= node.ownerDocument.activeElement as HTMLElement | null;
+        showDialog(panel, props.initialFocus);
+      } else if (panel) {
+        const doc = panel.ownerDocument;
+        const restore = panel.contains(doc.activeElement)
+          || doc.activeElement === doc.body;
+        const old = panel;
+        panel = null;
+        if (old.open) old.close();
+        if (restore && props.restoreFocus !== false && previous?.isConnected) {
+          previous.focus();
+        }
+      }
     }}
     onCancel={(event: Event) => {
-      if (props.dismissible === false) event.preventDefault();
-      else set(false);
+      event.preventDefault();
+      if (props.dismissible !== false) set(false);
     }}
-    onClick={(event: Event) => {
-      if (props.dismissible !== false
-        && event.target === event.currentTarget) set(false);
+    onPointerDown={(event: PointerEvent) => {
+      backdrop = event.target === event.currentTarget && Boolean(outside(event));
     }}
-    onClose={() => set(false)}
+    onClick={(event: MouseEvent) => {
+      const dismiss = backdrop && event.target === event.currentTarget
+        && outside(event);
+      backdrop = false;
+      if (dismiss && props.dismissible !== false) set(false);
+    }}
+    onClose={(event: Event) => {
+      if (panel && event.currentTarget === panel) set(false);
+    }}
   >
     <div class={$(
       "flex min-h-0 flex-col",
@@ -557,18 +630,28 @@ function Overlay(props: UiProps & { kind: "drawer" | "modal" }): Child {
     )}>
       <header class={$(
         "flex shrink-0 items-start justify-between",
-        "gap-4 border-b p-5",
+        "gap-4 border-b $line p-5",
       )}>
-        <div class="grid gap-1">
+        {props.slotHeader ? <div>
+          {props.title ? <span class="sr-only" id={`${id}-title`}>
+            {props.title}
+          </span> : null}
+          {props.description ? <span class="sr-only" id={`${id}-description`}>
+            {props.description}
+          </span> : null}
+          {props.slotHeader(() => set(false))}
+        </div> : <div
+          class="grid gap-1"
+        >
           {props.title ? <b id={`${id}-title`}>{props.title}</b> : null}
           {props.description ? <p
             class={$("text-sm $muted")}
             id={`${id}-description`}
           >{props.description}</p> : null}
-        </div>
+        </div>}
         {props.dismissible === false ? null : <button
           aria-label="Close"
-          class={$("rounded p-1 $hoverSoft")}
+          class={$("rounded p-1 $hoverSoft", focus)}
           type="button"
           onClick={() => set(false)}
         ><Icon name="x" /></button>}
@@ -576,7 +659,7 @@ function Overlay(props: UiProps & { kind: "drawer" | "modal" }): Child {
       <div class="min-h-0 flex-1 overflow-y-auto p-5">
         {props.slotBody?.() || props.content || props.body || props.children}
       </div>
-      {props.slotFooter ? <footer class="shrink-0 border-t p-5">
+      {props.slotFooter ? <footer class={$("shrink-0 border-t $line p-5")}>
         {props.slotFooter(() => set(false))}
       </footer> : null}
     </div>
@@ -584,11 +667,11 @@ function Overlay(props: UiProps & { kind: "drawer" | "modal" }): Child {
   return <>{button}{dialog}</>;
 }
 
-export function Modal(props: UiProps) {
+export function Modal(props: OverlayProps) {
   return Overlay({ ...props, kind: "modal" });
 }
 
-export function Drawer(props: UiProps) {
+export function Drawer(props: OverlayProps) {
   return Overlay({ ...props, kind: "drawer" });
 }
 

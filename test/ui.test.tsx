@@ -29,6 +29,8 @@ import {
   Drawer,
   Editor,
   Empty,
+  FileUpload,
+  FormField,
   Icon,
   Input,
   InputNumber,
@@ -55,6 +57,7 @@ import {
   Switch,
   Table,
   Tabs,
+  Textarea,
   Term,
   Toast,
   Tooltip,
@@ -1491,6 +1494,8 @@ test("ships compiled Tailwind utilities inside the package", async () => {
   expect(css).toContain(".lui-editor-body .tiptap");
   expect(css).toContain(".lui-editor-toolbar");
   expect(css).toContain(".lui-data-table .dt-layout-table");
+  expect(css).toContain("--luon-scroll-size:5px");
+  expect(css).toContain("::-webkit-scrollbar");
   expect(css.length).toBeGreaterThan(1000);
 });
 
@@ -1507,5 +1512,446 @@ test("keeps external engines behind the Luon CDN boundary", () => {
     document.body,
   );
   expect(document.querySelector(".lui-chart")).toBeInstanceOf(HTMLElement);
+  close();
+});
+
+test("combines input addons and clears without losing focus", () => {
+  const changes: unknown[] = [];
+  const close = mount(<Input
+    clearable defaultValue="luon" icon="globe" id="domain"
+    error="Use a complete domain" prefix="https://" suffix=".dev"
+    trailingIcon="check" variant="soft"
+    onChange={(value: unknown) => changes.push(value)}
+  />, document.body);
+  const input = document.querySelector("input")!;
+  const clear = document.querySelector<HTMLButtonElement>(
+    '[aria-label="Clear input"]',
+  )!;
+  expect(document.body.textContent).toContain("https://");
+  expect(document.body.textContent).toContain(".dev");
+  expect(document.querySelector('[data-icon="check"]')).toBeTruthy();
+  expect(input.getAttribute("aria-describedby")).toBe("domain-error");
+  expect(document.getElementById("domain-error")?.textContent)
+    .toBe("Use a complete domain");
+  clear.click();
+  expect(changes).toEqual([""]);
+  expect(input.value).toBe("");
+  expect(document.activeElement).toBe(input);
+  expect(clear.disabled).toBeTrue();
+  close();
+});
+
+test("keeps disabled and read-only input values intact", () => {
+  const changes: unknown[] = [];
+  const close = mount(<>
+    <Input clearable defaultValue="Locked" readOnly
+      onChange={(value: unknown) => changes.push(value)} />
+    <Input clearable defaultValue="Secret" disabled type="password"
+      onChange={(value: unknown) => changes.push(value)} />
+    <Checkbox disabled label="Unavailable" />
+    <Switch disabled label="Unavailable" />
+  </>, document.body);
+  const inputs = document.querySelectorAll(".lui-input input");
+  expect((inputs[0] as HTMLInputElement).readOnly).toBeTrue();
+  expect((inputs[1] as HTMLInputElement).disabled).toBeTrue();
+  for (const button of document.querySelectorAll(".lui-input button")) {
+    expect((button as HTMLButtonElement).disabled).toBeTrue();
+    button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  }
+  expect((inputs[1] as HTMLInputElement).type).toBe("password");
+  expect(document.querySelector<HTMLInputElement>('[type="checkbox"]')
+    ?.disabled).toBeTrue();
+  expect(document.querySelector<HTMLButtonElement>('[role="switch"]')
+    ?.disabled).toBeTrue();
+  expect(changes).toEqual([]);
+  close();
+});
+
+test("blocks disabled link actions including synthetic clicks", () => {
+  let count = 0;
+  const close = mount(<>
+    <Button disabled href="/settings" onClick={() => count++}>Settings</Button>
+    <Button loading href="/deploy" onClick={() => count++}>Deploying</Button>
+    <Button href="/help" onClick={() => count++}>Help</Button>
+  </>, document.body);
+  const links = document.querySelectorAll("a");
+  for (const link of links) link.dispatchEvent(new MouseEvent("click", {
+    bubbles: true, cancelable: true,
+  }));
+  expect(links[0]?.hasAttribute("href")).toBeFalse();
+  expect(links[1]?.hasAttribute("href")).toBeFalse();
+  expect(links[0]?.tabIndex).toBe(-1);
+  expect(links[2]?.getAttribute("href")).toBe("/help");
+  expect(count).toBe(1);
+  close();
+});
+
+test("navigates filtered options and restores select focus", () => {
+  const changes: unknown[] = [];
+  const close = mount(<SelectMenu
+    items={["Alpha", { label: "Beta", value: "beta", disabled: true },
+      "Gamma"]}
+    onChange={(value: unknown) => changes.push(value)}
+  />, document.body);
+  const trigger = document.querySelector<HTMLButtonElement>(
+    ".lui-select-menu > button",
+  )!;
+  const search = document.querySelector<HTMLInputElement>(
+    '[role="combobox"]',
+  )!;
+  const key = (node: Element, value: string) => node.dispatchEvent(
+    new KeyboardEvent("keydown", { key: value, bubbles: true }),
+  );
+  key(trigger, "ArrowDown");
+  expect(document.activeElement).toBe(search);
+  key(search, "ArrowDown");
+  const active = document.getElementById(
+    search.getAttribute("aria-activedescendant")!,
+  );
+  expect(active?.textContent).toContain("Gamma");
+  key(search, "Enter");
+  expect(changes).toEqual(["Gamma"]);
+  expect(document.activeElement).toBe(trigger);
+  expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  key(trigger, "ArrowDown");
+  search.value = "missing";
+  search.dispatchEvent(new Event("input", { bubbles: true }));
+  key(search, "Enter");
+  expect(changes).toEqual(["Gamma"]);
+  expect(document.querySelector('[role="status"]')?.textContent)
+    .toBe("No results");
+  key(search, "Escape");
+  expect(document.activeElement).toBe(trigger);
+  close();
+});
+
+test("submits grouped multiple choices and clears the entire value", () => {
+  const changes: unknown[] = [];
+  const close = mount(<SelectMenu
+    clearable defaultValue={["read", "write"]} maxVisible={1}
+    items={[{ group: "Permissions", items: ["read", "write", "admin"] }]}
+    multiple name="roles" onChange={(value: unknown) => changes.push(value)}
+  />, document.body);
+  expect(document.querySelector('[role="listbox"]')?.textContent)
+    .toContain("Permissions");
+  expect(document.querySelector('[role="listbox"]')
+    ?.getAttribute("aria-multiselectable")).toBe("true");
+  expect(document.querySelector(".lui-select-menu > button")?.textContent)
+    .toContain("+1");
+  expect([...document.querySelectorAll<HTMLInputElement>(
+    'input[type="hidden"][name="roles"]',
+  )].map((input) => input.value)).toEqual(["read", "write"]);
+  document.querySelector<HTMLButtonElement>(
+    '[aria-label="Clear selection"]',
+  )!.click();
+  expect(changes).toEqual([[]]);
+  expect(document.querySelectorAll('input[type="hidden"]')).toHaveLength(0);
+  close();
+});
+
+test("keeps a read-only select out of its popup and change callbacks", () => {
+  let count = 0;
+  const close = mount(<SelectMenu
+    clearable defaultValue="One" items={["One", "Two"]} readOnly
+    onChange={() => count++}
+  />, document.body);
+  const trigger = document.querySelector<HTMLButtonElement>(
+    ".lui-select-menu > button",
+  )!;
+  expect(trigger.hasAttribute("popovertarget")).toBeFalse();
+  trigger.dispatchEvent(new KeyboardEvent("keydown", {
+    key: "ArrowDown", bubbles: true,
+  }));
+  for (const node of document.querySelectorAll("button")) {
+    node.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  }
+  expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  expect(count).toBe(0);
+  close();
+});
+
+test("caps textarea growth while preserving its value", () => {
+  const close = mount(<Textarea autoresize maxRows={4} rows={2}
+    style={{ boxSizing: "border-box", lineHeight: "20px",
+      paddingTop: "8px", paddingBottom: "8px" }}
+  />, document.body);
+  const input = document.querySelector("textarea")!;
+  Object.defineProperty(input, "scrollHeight", { value: 216 });
+  input.value = "A long note";
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  expect(input.style.height).toBe("96px");
+  expect(input.style.overflowY).toBe("auto");
+  expect(input.value).toBe("A long note");
+  close();
+});
+
+test("keeps default solid colors readable in both palettes", async () => {
+  const source = await Bun.file(new URL("../src/theme.css", import.meta.url))
+    .text();
+  const luminance = (hex: string) => {
+    const rgb = hex.match(/[\da-f]{2}/gi)!.map((value) => {
+      const channel = parseInt(value, 16) / 255;
+      return channel <= .04045 ? channel / 12.92
+        : ((channel + .055) / 1.055) ** 2.4;
+    });
+    return rgb[0]! * .2126 + rgb[1]! * .7152 + rgb[2]! * .0722;
+  };
+  const palettes = [...source.matchAll(/\{([^{}]*--lui-base-on:[^{}]*)\}/g)];
+  expect(palettes).toHaveLength(2);
+  for (const palette of palettes) {
+    const colors = Object.fromEntries([...palette[1]!.matchAll(
+      /--lui-base-([a-z]+): (#[\da-f]{6});/g,
+    )].map((match) => [match[1]!, luminance(match[2]!)]));
+    for (const name of ["primary", "secondary", "danger", "warning",
+      "success"]) {
+      const high = Math.max(colors[name]!, colors.on!);
+      const low = Math.min(colors[name]!, colors.on!);
+      expect((high + .05) / (low + .05), name).toBeGreaterThanOrEqual(4.5);
+    }
+  }
+});
+
+test("links fields to native input labels, errors and requirements", async () => {
+  const close = mount(<FormField label="Email" error="Email is required"
+    required orientation="horizontal">
+    <Input aria-describedby="external-help" />
+  </FormField>, document.body);
+  await Promise.resolve();
+  const input = document.querySelector("input")!;
+  const label = document.querySelector<HTMLLabelElement>("label[data-field]")!;
+  const error = document.querySelector('[role="alert"]')!;
+  expect(label.htmlFor).toBe(input.id);
+  expect(input.id).not.toBe("");
+  expect(input.getAttribute("aria-describedby"))
+    .toBe(`external-help ${error.id}`);
+  expect(input.getAttribute("aria-invalid")).toBe("true");
+  expect(input.required).toBeTrue();
+  expect(document.querySelector("label label")).toBeNull();
+  close();
+});
+
+test("preserves empty numbers and precise bounded steps", () => {
+  const values: unknown[] = [];
+  const close = mount(<InputNumber defaultValue={0.2} step={0.1} max={0.4}
+    onChange={(value: unknown) => values.push(value)} />, document.body);
+  const input = document.querySelector("input")!;
+  const plus = document.querySelector<HTMLButtonElement>(
+    '[aria-label="Increase"]',
+  )!;
+  plus.click();
+  expect(values.at(-1)).toBe(0.3);
+  plus.click();
+  expect(values.at(-1)).toBe(0.4);
+  expect(plus.disabled).toBeTrue();
+  input.value = "";
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  expect(values.at(-1)).toBeUndefined();
+  expect(input.value).toBe("");
+  close();
+});
+
+test("validates dropped files and removes accepted selections", () => {
+  const values: any[] = [];
+  const rejected: any[] = [];
+  const close = mount(<FileUpload multiple accept=".txt" maxSize={4}
+    maxFiles={1} onChange={(value: unknown) => values.push(value)}
+    onReject={(files) => rejected.push(...files)} />, document.body);
+  const drop = new Event("drop", { bubbles: true, cancelable: true });
+  Object.defineProperty(drop, "dataTransfer", { value: { files: [
+    new File(["ok"], "one.txt"), new File(["x"], "image.png"),
+    new File(["large"], "big.txt"), new File(["ok"], "two.txt"),
+  ] } });
+  document.querySelector(".lui-upload > div")!.dispatchEvent(drop);
+  expect(values[0].map((file: File) => file.name)).toEqual(["one.txt"]);
+  expect(rejected.map((item) => item.reason)).toEqual(["type", "size", "count"]);
+  expect(document.querySelector('[role="alert"]')?.textContent)
+    .toContain("File is too large.");
+  document.querySelector<HTMLButtonElement>('[aria-label="Remove one.txt"]')!
+    .click();
+  expect(values.at(-1)).toEqual([]);
+  close();
+});
+
+test("blocks disabled and read-only uploads including drops", () => {
+  const values: unknown[] = [];
+  const close = mount(<>
+    <FileUpload disabled onChange={(value: unknown) => values.push(value)} />
+    <FileUpload readOnly onChange={(value: unknown) => values.push(value)} />
+  </>, document.body);
+  for (const zone of document.querySelectorAll(".lui-upload > div")) {
+    const event = new Event("drop", { bubbles: true });
+    Object.defineProperty(event, "dataTransfer", { value: {
+      files: [new File(["ok"], "one.txt")],
+    } });
+    zone.dispatchEvent(event);
+    expect(zone.querySelector("button")!.disabled).toBeTrue();
+  }
+  expect(values).toEqual([]);
+  close();
+});
+
+test("navigates menus past disabled links and restores trigger focus", () => {
+  const values: string[] = [];
+  const close = mount(<DropdownMenu label="Actions" items={[
+    { label: "Blocked", href: "/blocked", disabled: true,
+      onSelect: () => values.push("blocked") },
+    { label: "Edit", onSelect: () => values.push("edit") },
+    { label: "Save", onSelect: () => values.push("save") },
+  ]} />, document.body);
+  const trigger = document.querySelector<HTMLButtonElement>("[popovertarget]")!;
+  const menu = document.querySelector<HTMLElement>('[role="menu"]')!;
+  let open = false;
+  menu.showPopover = () => { open = true; };
+  menu.hidePopover = () => { open = false; };
+  trigger.focus();
+  trigger.dispatchEvent(new KeyboardEvent("keydown", {
+    bubbles: true, cancelable: true, key: "ArrowDown",
+  }));
+  expect(open).toBeTrue();
+  expect(document.activeElement?.textContent).toBe("Edit");
+  const link = menu.querySelector("a")!;
+  expect(link.hasAttribute("href")).toBeFalse();
+  link.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  expect(values).toEqual([]);
+  document.activeElement!.dispatchEvent(new KeyboardEvent("keydown", {
+    bubbles: true, cancelable: true, key: "End",
+  }));
+  expect(document.activeElement?.textContent).toBe("Save");
+  document.activeElement!.dispatchEvent(new KeyboardEvent("keydown", {
+    bubbles: true, cancelable: true, key: " ",
+  }));
+  expect(values).toEqual(["save"]);
+  expect(open).toBeFalse();
+  expect(document.activeElement).toBe(trigger);
+  expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  close();
+});
+
+test("distinguishes dialog padding from backdrop and restores focus", async () => {
+  const values: boolean[] = [];
+  const close = mount(<Modal label="Open" title="Details"
+    initialFocus="#dialog-input" onOpenChange={(value: boolean) => values.push(value)}>
+    <input id="dialog-input" />
+  </Modal>, document.body);
+  const trigger = document.querySelector<HTMLButtonElement>("button")!;
+  trigger.focus();
+  trigger.click();
+  await Promise.resolve();
+  const dialog = document.querySelector("dialog")!;
+  dialog.getBoundingClientRect = () => box(100, 200);
+  expect(document.activeElement?.id).toBe("dialog-input");
+  for (const type of ["pointerdown", "click"]) {
+    dialog.dispatchEvent(new MouseEvent(type, {
+      bubbles: true, clientX: 20, clientY: 120,
+    }));
+  }
+  expect(document.querySelector("dialog")).toBe(dialog);
+  for (const type of ["pointerdown", "click"]) {
+    dialog.dispatchEvent(new MouseEvent(type, {
+      bubbles: true, clientX: 500, clientY: 500,
+    }));
+  }
+  expect(document.querySelector("dialog")).toBeNull();
+  expect(document.activeElement).toBe(trigger);
+  expect(values).toEqual([true, false]);
+  close();
+});
+
+test("keeps keyboard commands on enabled choices during IME input", () => {
+  const values: unknown[] = [];
+  const close = mount(<CommandPalette items={[
+    { label: "Blocked", value: "blocked", disabled: true },
+    { label: "Edit", value: "edit" }, { label: "Save", value: "save" },
+  ]} onChange={(value: unknown) => values.push(value)} />, document.body);
+  const input = document.querySelector("input")!;
+  input.dispatchEvent(new KeyboardEvent("keydown", {
+    bubbles: true, key: "Enter", isComposing: true,
+  }));
+  expect(values).toEqual([]);
+  for (const key of ["ArrowUp", "Enter"]) {
+    input.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key }));
+  }
+  expect(values).toEqual(["save"]);
+  expect(document.getElementById(input.getAttribute("aria-activedescendant")!)
+    ?.textContent).toContain("Save");
+  close();
+});
+
+test("uses calendar day boundaries and guards footer actions", () => {
+  const values: unknown[] = [];
+  const close = mount(<Calendar defaultMonth="2026-09-01"
+    min={new Date(2026, 8, 5, 12)} max="2026-09-05" showToday showClear
+    showOutside={false} onChange={(value: unknown) => values.push(value)} />,
+  document.body);
+  const day = document.querySelector<HTMLButtonElement>(
+    '[aria-label="September 5, 2026"]',
+  )!;
+  expect(day.disabled).toBeFalse();
+  day.click();
+  expect((values[0] as Date).getDate()).toBe(5);
+  const hidden = document.querySelector<HTMLButtonElement>(
+    '.lui-calendar__day[aria-hidden="true"]',
+  )!;
+  expect(hidden.disabled).toBeTrue();
+  const today = [...document.querySelectorAll("footer button")]
+    .find((node) => node.textContent === "Today") as HTMLButtonElement;
+  const now = new Date();
+  expect(today.disabled).toBe(!(now.getFullYear() === 2026
+    && now.getMonth() === 8 && now.getDate() === 5));
+  close();
+  const stop = mount(<Calendar disabled showToday showClear
+    onChange={(value: unknown) => values.push(value)} />, document.body);
+  for (const button of document.querySelectorAll<HTMLButtonElement>(
+    "footer button",
+  )) {
+    expect(button.disabled).toBeTrue();
+    button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  }
+  expect(values).toHaveLength(1);
+  stop();
+});
+
+test("opens context actions by keyboard and dismisses with Escape", () => {
+  const close = mount(<ContextMenu items={["Open", "Archive"]}>
+    <span>Project</span>
+  </ContextMenu>, document.body);
+  const root = document.querySelector<HTMLElement>(".lui-context")!;
+  const menu = root.querySelector<HTMLElement>('[role="menu"]')!;
+  let open = false;
+  menu.showPopover = () => { open = true; };
+  menu.hidePopover = () => { open = false; };
+  root.focus();
+  root.dispatchEvent(new KeyboardEvent("keydown", {
+    bubbles: true, cancelable: true, key: "F10", shiftKey: true,
+  }));
+  expect(open).toBeTrue();
+  expect(document.activeElement?.textContent).toBe("Open");
+  document.activeElement!.dispatchEvent(new KeyboardEvent("keydown", {
+    bubbles: true, cancelable: true, key: "Escape",
+  }));
+  expect(open).toBeFalse();
+  expect(document.activeElement).toBe(root);
+  close();
+});
+
+test("moves rating and listbox selection from the keyboard", () => {
+  const values: unknown[] = [];
+  const close = mount(<>
+    <InputRating onChange={(value: unknown) => values.push(value)} />
+    <Listbox items={[
+      { label: "One", value: 1 },
+      { label: "Two", value: 2, disabled: true },
+      { label: "Three", value: 3 },
+    ]} onChange={(value: unknown) => values.push(value)} />
+  </>, document.body);
+  for (const selector of ['[role="radio"]', '[role="option"]']) {
+    const first = document.querySelector<HTMLElement>(selector)!;
+    first.focus();
+    first.dispatchEvent(new KeyboardEvent("keydown", {
+      bubbles: true, cancelable: true, key: "ArrowRight",
+    }));
+  }
+  expect(values).toEqual([2, 3]);
+  expect(document.activeElement?.textContent).toBe("Three");
   close();
 });

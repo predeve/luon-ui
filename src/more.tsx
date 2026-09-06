@@ -7,19 +7,18 @@ import {
 } from "@luon/view";
 
 import { Icon } from "./icon.view.js";
-import { tones } from "./skin.ts";
+import { focus, font, tones } from "./skin.ts";
 import type { Item, UiProps } from "./types.ts";
 import {
   $,
   itemsOf,
+  menuKeys,
   model,
   place,
   read,
   resetPlace,
   target,
 } from "./util.ts";
-
-const font = "font-[family-name:var(--lui-font)] $text";
 
 function childrenOf(children: Child | Child[] | undefined): Child[] {
   const values: Child[] = [];
@@ -151,164 +150,217 @@ export function Tree(props: UiProps) {
   </div>;
 }
 
-function menuItems(values: unknown[], close: () => void) {
-  return values.flat(Infinity).map((value, index) => {
+function menuItems(values: unknown[], close: () => void, disabled = false) {
+  return values.flat(Infinity).map((value) => {
     const source = value as Record<string, any>;
     const item = itemsOf([value])[0]!;
     if (source?.type === "separator") {
-      return <hr class={$("my-1 $line")} />;
+      return <hr class={$("my-1 $line")} role="separator" />;
     }
     if (source?.type === "label") {
-      return <span class={$("px-3 py-1 text-xs $muted")}>
+      return <span class={$("px-3 py-1 text-xs font-medium $muted")}>
         {item.label}
       </span>;
     }
+    const locked = disabled || item.disabled;
+    const choose = (event: MouseEvent) => {
+      if (locked) { event.preventDefault(); return; }
+      close();
+      source?.onSelect?.();
+      source?.onClick?.(event);
+    };
     const body = <>
-      {item.icon ? <Icon name={item.icon} /> : null}
+      {item.icon ? <Icon class="shrink-0" name={item.icon} /> : null}
       <span class="grid flex-1"><span>{item.label}</span>{item.description
-        ? <small class={$("$muted")}>{item.description}</small>
-        : null}</span>
-      {source?.kbds?.length ? <kbd>{source.kbds.join("+")}</kbd> : null}
+        ? <small class={$("$muted")}>{item.description}</small> : null}</span>
+      {source?.kbds?.length ? <kbd class={$("ml-4 text-xs $muted")}>
+        {source.kbds.join("+")}
+      </kbd> : null}
     </>;
-    if (source?.to || source?.href) {
-      return <a
-        class={$("flex items-center gap-2 rounded px-3 py-2 $hoverSoft")}
-        href={source.to || source.href}
-        role="menuitem"
-        onClick={close}
-      >{body}</a>;
-    }
-    return <button
-      class={$(
-        "flex items-center gap-2 rounded px-3 py-2 text-left",
-        "$hoverSoft",
-        ["danger", "error"].includes(source?.color)
-          && "$dangerText",
-      )}
-      disabled={item.disabled}
-      role="menuitem"
-      type="button"
-      onClick={() => {
-        source?.onSelect?.();
-        source?.onClick?.();
-        close();
-      }}
+    const style = $(
+      "flex items-center gap-2 rounded px-3 py-2 text-left text-sm",
+      "$hoverSoft focus-visible:bg-[var(--lui-soft)] outline-none",
+      "disabled:opacity-40 aria-disabled:opacity-40",
+      ["danger", "error"].includes(source?.color) && "$dangerText",
+    );
+    return source?.to || source?.href ? <a
+      aria-disabled={locked || undefined} class={style}
+      href={locked ? undefined : source.to || source.href}
+      role="menuitem" tabindex={-1} onClick={choose}
+    >{body}</a> : <button class={style} disabled={locked}
+      role="menuitem" tabindex={-1} type="button" onClick={choose}
     >{body}</button>;
   });
 }
 
 let menuId = 0;
 
-export function DropdownMenu(props: UiProps) {
+export type MenuProps = UiProps & {
+  align?: "start" | "center" | "end";
+  side?: "auto" | "top" | "bottom" | "left" | "right";
+  width?: string | number;
+};
+export function DropdownMenu(props: MenuProps) {
   const id = props.id || `lui-menu-${++menuId}`;
   let menu: HTMLElement | null = null;
-  let anchor: Element | null = null;
-  const close = () => menu?.hidePopover?.();
+  let root: Element | null = null;
+  let anchor: HTMLElement | null = null;
+  let opened = false;
+  const sync = () => {
+    anchor ||= root?.querySelector<HTMLElement>(`[popovertarget="${id}"]`)
+      || null;
+    anchor?.setAttribute("aria-expanded", String(opened));
+    anchor?.setAttribute("aria-controls", id);
+    anchor?.setAttribute("aria-haspopup", "menu");
+  };
+  const close = () => {
+    opened = false;
+    sync();
+    menu?.hidePopover?.();
+    if (anchor?.isConnected) anchor.focus();
+  };
+  const open = (last = false) => {
+    if (props.disabled || !menu) return;
+    opened = true;
+    sync();
+    menu.showPopover?.();
+    if (anchor) place(menu, anchor, props.align, props.width, props.side);
+    const nodes = [...menu.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+      .filter((node) => !node.matches(':disabled, [aria-disabled="true"]'));
+    (last ? nodes.at(-1) : nodes[0])?.focus();
+  };
   const source = props.slotTrigger?.() ?? props.trigger ?? props.children;
+  const attrs = { "aria-controls": id, "aria-expanded": false,
+    "aria-haspopup": "menu", popovertarget: id,
+    ...(props.disabled ? { disabled: true } : {}) };
   let trigger: Child;
-  if (source instanceof Element) {
-    if (source.matches("button, a, [role=button]")) {
-      source.setAttribute("popovertarget", id);
-      anchor = source;
+  if (source instanceof HTMLElement) {
+    anchor = source.matches("button, a, [role=button]") ? source
+      : source.querySelector<HTMLElement>("button, a, [role=button]");
+    if (anchor) {
+      for (const [key, value] of Object.entries(attrs)) {
+        anchor.setAttribute(key, String(value));
+      }
       trigger = source;
-    } else {
-      trigger = <span
-        class="contents"
-        onClick={(event: MouseEvent) => {
-          const clicked = event.target instanceof Element
-            ? event.target.closest("button, a, [role=button]")
-            : null;
-          anchor = clicked || source;
-          menu?.togglePopover?.();
-        }}
-      >{source}</span>;
-    }
-  } else if (passProps(source, { popovertarget: id })) {
-    trigger = source;
-  } else {
-    trigger = <button
-      class={$(
-        "inline-flex items-center gap-2 rounded border",
-        "$line px-3 py-2 text-sm",
-      )}
-      popovertarget={id}
-      ref={(node: Element | null) => anchor = node}
-      type="button"
-    >{source ?? props.label ?? "Menu"}<Icon
-        class="mr-1"
-        name="chevron-down"
-      /></button>;
-  }
-  return <>{trigger}<div
-    class={$(
-      "lui-menu m-0 hidden min-w-48 gap-0.5 open:grid",
-      "$radius",
-      "border $line $bg p-1 shadow-xl",
-      font,
-    )}
-    id={id}
-    popover="auto"
-    ref={(node: Element | null) => menu = node as HTMLElement | null}
-    role="menu"
-    onToggle={() => {
-      anchor ||= document.querySelector(`[popovertarget="${id}"]`);
-      if (!menu || !anchor) return;
-      const open = menu.matches(":popover-open");
-      anchor.setAttribute("aria-expanded", String(open));
-      if (open) place(menu, anchor, props.align, props.width);
+    } else trigger = <button {...attrs} type="button">{source}</button>;
+  } else if (passProps(source, attrs)) trigger = source;
+  else trigger = <button {...attrs}
+    class={$("inline-flex items-center gap-2 $radius border $line $bg",
+      "px-3 py-2 text-sm disabled:opacity-50", focus)}
+    type="button"
+  >{source ?? props.label ?? "Menu"}<Icon class="mr-1"
+      name="chevron-down" /></button>;
+  return <span class="lui-menu-root contents"
+    ref={(node: Element | null) => {
+      root = node;
+      if (node) queueMicrotask(() => { if (node.isConnected) sync(); });
     }}
-  >{menuItems(props.items || [], close)}</div></>;
+    onClick={(event: MouseEvent) => {
+      if (event.defaultPrevented || menu?.contains(event.target as Node)) return;
+      const node = event.target instanceof Element
+        ? event.target.closest<HTMLElement>("button, a, [role=button]") : null;
+      if (!node) return;
+      event.preventDefault();
+      anchor = node;
+      if (!props.disabled) { if (opened) close(); else open(); }
+    }}
+    onKeyDown={(event: KeyboardEvent) => {
+      if (!menu || event.defaultPrevented || event.isComposing) return;
+      if (menu.contains(event.target as Node)) menuKeys(event, menu, close);
+      else if (["ArrowDown", "ArrowUp", "Enter", " "].includes(event.key)) {
+        event.preventDefault();
+        anchor = event.target as HTMLElement;
+        open(event.key === "ArrowUp");
+      }
+    }}
+  >{trigger}<div
+    class={$("lui-menu m-0 hidden min-w-48 gap-0.5 open:grid",
+      "$radius border $line $bg p-1 shadow-[var(--lui-shadow-overlay)]", font)}
+    id={id} popover="auto" role="menu"
+    ref={(node: Element | null) => menu = node as HTMLElement | null}
+    onToggle={(event: Event) => {
+      const shown = (event as ToggleEvent).newState === "open";
+      if (shown && !opened) open();
+      else { opened = shown; sync(); }
+    }}
+  >{menuItems(props.items || [], close, props.disabled)}</div></span>;
 }
 
-export function ContextMenu(props: UiProps) {
+export function ContextMenu(props: Omit<MenuProps, "align" | "side">) {
   let menu: HTMLElement | null = null;
-  const close = () => menu?.hidePopover?.();
+  let root: HTMLElement | null = null;
+  let anchor: HTMLElement | null = null;
   let unbind = () => {};
-  const bind = (node: Element | null) => {
+  const close = (restore = true) => {
     unbind();
     unbind = () => {};
-    if (!node) return;
-    const doc = node.ownerDocument;
+    menu?.hidePopover?.();
+    if (restore && anchor?.isConnected) anchor.focus();
+  };
+  const open = (x: number, y: number) => {
+    if (!menu || !root || props.disabled) return;
+    close(false);
+    resetPlace(menu);
+    if (props.width !== undefined) {
+      menu.style.width = typeof props.width === "number"
+        ? `${props.width}px` : props.width;
+    }
+    menu.showPopover?.();
+    menu.style.maxWidth = `${Math.max(0, innerWidth - 16)}px`;
+    menu.style.maxHeight = `${Math.max(0, innerHeight - 16)}px`;
+    menu.style.overflowY = "auto";
+    menu.style.left = `${Math.max(8, Math.min(x,
+      innerWidth - menu.offsetWidth - 8))}px`;
+    menu.style.top = `${Math.max(8, Math.min(y,
+      innerHeight - menu.offsetHeight - 8))}px`;
+    menu.querySelector<HTMLElement>(
+      '[role="menuitem"]:not(:disabled):not([aria-disabled="true"])',
+    )?.focus();
+    const doc = root.ownerDocument;
     const outside = (event: Event) => {
-      if (!(event.target instanceof Node) || menu?.contains(event.target)) {
-        return;
-      }
-      close();
+      if (!menu?.contains(event.target as Node)) close(false);
     };
-    const keydown = (event: KeyboardEvent) => {
+    const key = (event: KeyboardEvent) => {
       if (event.key === "Escape") close();
     };
     doc.addEventListener("pointerdown", outside, true);
-    doc.addEventListener("keydown", keydown);
+    doc.addEventListener("keydown", key);
     unbind = () => {
       doc.removeEventListener("pointerdown", outside, true);
-      doc.removeEventListener("keydown", keydown);
+      doc.removeEventListener("keydown", key);
     };
   };
-  return <div
-    class={"lui-context"}
-    ref={bind}
-    onContextMenu={(event: MouseEvent) => {
-      event.preventDefault();
-      if (!menu) return;
-      resetPlace(menu);
-      menu.style.left = `${event.clientX}px`;
-      menu.style.top = `${event.clientY}px`;
-      menu.showPopover?.();
+  return <div class="lui-context" tabindex={props.disabled ? -1 : 0}
+    aria-label={props["aria-label"]}
+    ref={(node: Element | null) => {
+      unbind();
+      root = node as HTMLElement | null;
     }}
-  >
-    {props.children}
-    <div
-      class={$(
-        "lui-context-menu fixed m-0 hidden min-w-48 gap-0.5 open:grid",
-        "$radius border $line",
-        "$bg p-1 shadow-xl",
-        font,
-      )}
-      popover="manual"
+    onKeyDown={(event: KeyboardEvent) => {
+      if (menu?.contains(event.target as Node)) {
+        menuKeys(event, menu, close);
+      } else if (event.key === "ContextMenu"
+        || (event.shiftKey && event.key === "F10")) {
+        event.preventDefault();
+        anchor = event.target as HTMLElement;
+        const box = anchor.getBoundingClientRect();
+        open(box.left, box.bottom);
+      }
+    }}
+    onContextMenu={(event: MouseEvent) => {
+      if (props.disabled) return;
+      event.preventDefault();
+      anchor = event.target instanceof HTMLElement
+        && event.target.matches("button, a, input, [tabindex]")
+        ? event.target : root;
+      open(event.clientX, event.clientY);
+    }}
+  >{props.children}<div
+      class={$("lui-context-menu fixed m-0 hidden min-w-48 gap-0.5 open:grid",
+        "$radius border $line $bg p-1 shadow-[var(--lui-shadow-overlay)]", font)}
+      popover="manual" role="menu"
       ref={(node: Element | null) => menu = node as HTMLElement | null}
-      role="menu"
-    >{menuItems(props.items || [], close)}</div>
+    >{menuItems(props.items || [], close, props.disabled)}</div>
   </div>;
 }
 
@@ -327,7 +379,16 @@ export type CalendarProps = UiProps & {
 };
 
 function dateOf(value: unknown) {
-  if (value instanceof Date) return value;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? undefined : value;
+  }
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-").map(Number);
+    const date = new Date(0);
+    date.setFullYear(year!, month! - 1, day!);
+    date.setHours(0, 0, 0, 0);
+    return dayKey(date) === value ? date : undefined;
+  }
   if (typeof value === "string" || typeof value === "number") {
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? undefined : date;
@@ -359,7 +420,16 @@ export function Calendar(props: CalendarProps) {
   });
   const locale = props.locale || "en-US";
   const weekStartsOn = Number(props.weekStartsOn ?? 0);
+  const blocked = (date: Date) => {
+    const min = dateOf(props.min);
+    const max = dateOf(props.max);
+    const key = dayKey(date);
+    return Boolean(props.disabled || props.readOnly
+      || (min && key < dayKey(min)) || (max && key > dayKey(max))
+      || props.isDateDisabled?.(date));
+  };
   const select = (date: Date) => {
+    if (blocked(date)) return;
     const value = read(selected.value) as any;
     const start = dateOf(value?.start || value?.from);
     const end = dateOf(value?.end || value?.to);
@@ -500,11 +570,8 @@ export function Calendar(props: CalendarProps) {
         const inRange = Boolean(props.range && rangeStart && rangeEnd
           && date >= rangeStart && date <= rangeEnd);
         const outside = date.getMonth() !== shown.getMonth();
-        const min = dateOf(props.min);
-        const max = dateOf(props.max);
-        const disabled = Boolean(props.disabled
-          || (min && date < min) || (max && date > max)
-          || props.isDateDisabled?.(date));
+        const hidden = outside && props.showOutside === false;
+        const disabled = blocked(date) || hidden;
         const day: CalendarDay = {
           active,
           date,
@@ -515,6 +582,7 @@ export function Calendar(props: CalendarProps) {
           today: sameDay(new Date(), date),
         };
         return <button
+          aria-hidden={hidden || undefined}
           aria-label={new Intl.DateTimeFormat(locale, { dateStyle: "long" })
             .format(date)}
           aria-pressed={active}
@@ -524,10 +592,11 @@ export function Calendar(props: CalendarProps) {
             outside && "outside $muted opacity-60",
             day.today && "today font-bold $actionText",
             inRange && !active && "between $actionSoft",
-            active && "active $actionBg text-white",
+            active && "active $actionBg text-[var(--lui-on-action)]",
             props.variant === "planner" && "min-h-20 content-start p-1",
           )}
           disabled={disabled}
+          tabindex={hidden ? -1 : undefined}
           type="button"
           onClick={() => select(date)}
         >{outside && props.showOutside === false ? null
@@ -539,9 +608,15 @@ export function Calendar(props: CalendarProps) {
         {props.showClear ? <button
           class={$("rounded px-2 py-1 text-sm $muted $hoverSoft")}
           type="button"
-          onClick={() => selected.set(props.multiple ? [] : undefined)}
+          disabled={props.disabled || props.readOnly}
+          onClick={() => {
+            if (!props.disabled && !props.readOnly) {
+              selected.set(props.multiple ? [] : undefined);
+            }
+          }}
         >Clear</button> : null}
         {props.showToday ? <button
+          disabled={blocked(new Date())}
           class={$(
             "rounded px-2 py-1 text-sm font-semibold $actionText $hoverSoft",
           )}

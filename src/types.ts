@@ -3,6 +3,7 @@ export type UiProps = Record<string, any> & {
   children?: any; class?: any; className?: any;
 };
 export type Item = {
+  group?: string;
   children?: Child; description?: string; disabled?: boolean; icon?: string;
   label: string; value: unknown;
 };

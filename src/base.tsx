@@ -5,7 +5,7 @@ import { SelectMenu } from "./form.view.js";
 import { Icon } from "./icon.view.js";
 import Button from "./button.view.js";
 import Input from "./input.view.js";
-import { control, focus, font, sizes, tones } from "./skin.ts";
+import { control, controlSkin, focus, font, sizes, tones } from "./skin.ts";
 import type { UiProps } from "./types.ts";
 import {
   $,
@@ -22,7 +22,7 @@ const badgeKinds: Record<string, string> = {
   soft: "border-transparent "
     + "$actionSoft "
     + "$actionText",
-  solid: "border-transparent $actionBg text-white",
+  solid: "border-transparent $actionBg text-[var(--lui-on-action)]",
   subtle: "border-[color-mix(in_srgb,var(--lui-action)_24%,transparent)] "
     + "bg-[color-mix(in_srgb,var(--lui-action)_7%,var(--lui-bg))] "
     + "$actionText",
@@ -52,6 +52,7 @@ const colors: Record<string, string> = {
 
 let accordionId = 0;
 let sliderId = 0;
+let fieldId = 0;
 
 export function Text(props: UiProps) {
   const Tag = props.as || "span";
@@ -103,7 +104,7 @@ export function Chip(props: UiProps) {
     {props.show === false ? null : <span class={$(
       "absolute z-10 grid min-h-4 min-w-4 place-items-center rounded-full",
       "ring-2 ring-[var(--lui-bg)] $actionBg px-1 text-[.6rem]",
-      "font-semibold text-white",
+      "font-semibold text-[var(--lui-on-action)]",
       place,
     )}>{props.text ?? props.label ?? props.value}</span>}
   </span>;
@@ -144,18 +145,51 @@ export function Separator(props: UiProps) {
   </div>;
 }
 
-export function Textarea(props: UiProps) {
+export type TextareaProps = UiProps & {
+  autoresize?: boolean;
+  maxRows?: number;
+  resize?: boolean | "vertical" | "both";
+};
+export function Textarea(props: TextareaProps) {
   const current = model(props, props.defaultValue ?? "");
+  const resize = (node: HTMLTextAreaElement) => {
+    if (!props.autoresize) return;
+    node.style.height = "auto";
+    const css = window.getComputedStyle(node);
+    const line = parseFloat(css.lineHeight)
+      || parseFloat(css.fontSize) * 1.5 || 20;
+    const pixels = (value: string) => parseFloat(value) || 0;
+    const padding = pixels(css.paddingTop) + pixels(css.paddingBottom);
+    const border = pixels(css.borderTopWidth) + pixels(css.borderBottomWidth);
+    const min = Math.max(1, Number(props.rows) || 3);
+    const max = Math.max(min, Number(props.maxRows) || Infinity);
+    const content = node.scrollHeight - padding;
+    const height = Math.max(min * line, Math.min(content, max * line));
+    const extra = css.boxSizing === "border-box" ? padding + border : 0;
+    node.style.height = `${height + extra}px`;
+    node.style.overflowY = content > max * line ? "auto" : "hidden";
+  };
   return <textarea
     {...props.$attrs}
-    class={$(control, "lui-textarea min-h-24", sizes[props.size || "md"])}
+    aria-invalid={Boolean(props.error) || undefined}
+    disabled={props.disabled}
+    class={$(
+      control, controlSkin(props), "lui-textarea",
+      props.autoresize ? "min-h-0" : "min-h-24",
+      sizes[props.size || "md"],
+      props.resize === false || props.autoresize ? "resize-none"
+        : props.resize === "both" ? "resize" : "resize-y",
+    )}
+    ref={(node: Element | null) => {
+      if (node && props.autoresize) queueMicrotask(() => {
+        if (node.isConnected) resize(node as HTMLTextAreaElement);
+      });
+    }}
     value={current.value}
     onInput={(event: Event) => {
+      if (props.disabled || props.readOnly) return;
       const node = target<HTMLTextAreaElement>(event);
-      if (props.autoresize) {
-        node.style.height = "auto";
-        node.style.height = `${node.scrollHeight}px`;
-      }
+      resize(node);
       current.set(node.value);
     }}
   />;
@@ -170,10 +204,13 @@ export function Select(props: UiProps) {
     {...props.$attrs}
     class={$(
       control,
+      controlSkin(props),
       "lui-select",
       sizes[props.size || "md"],
     )}
     value={undefined}
+    disabled={props.disabled}
+    aria-invalid={Boolean(props.error) || undefined}
     onChange={(event: Event) => {
       const node = target<HTMLSelectElement>(event);
       const value = [...node.selectedOptions].map((item) => item.value);
@@ -205,6 +242,7 @@ export function Checkbox(props: UiProps) {
   )}>
     <input
       {...props.$attrs}
+      disabled={props.disabled}
       checked={pick(current.value, Boolean)}
       class="peer sr-only"
       type="checkbox"
@@ -216,7 +254,8 @@ export function Checkbox(props: UiProps) {
       "mt-0.5 grid size-5 place-items-center rounded border",
       "$line $bg text-transparent",
       "peer-checked:border-[var(--lui-action)]",
-      "peer-checked:bg-[var(--lui-action)] peer-checked:text-white",
+      "peer-checked:bg-[var(--lui-action)]",
+      "peer-checked:text-[var(--lui-on-action)]",
       "peer-focus-visible:outline-3",
     )}><Icon name="check" /></i>
     <span class="grid gap-0.5 text-sm">
@@ -236,6 +275,7 @@ export function Switch(props: UiProps) {
   );
   return <button
     {...props.$attrs}
+    disabled={props.disabled}
     aria-checked={pick(current.value, Boolean)}
     class={$(
       "lui-switch group inline-flex items-center gap-2.5 text-left",
@@ -245,7 +285,9 @@ export function Switch(props: UiProps) {
     )}
     role="switch"
     type="button"
-    onClick={() => current.set(!Boolean(read(current.value)))}
+    onClick={() => {
+      if (!props.disabled) current.set(!Boolean(read(current.value)));
+    }}
   >
     <span class={$(
       "relative h-6 w-11 shrink-0 rounded-full bg-[var(--lui-line)] transition",
@@ -267,9 +309,12 @@ export function Switch(props: UiProps) {
 
 export function RadioGroup(props: UiProps) {
   const current = model(props, props.defaultValue);
+  const name = props.name || `lui-radio-${++fieldId}`;
   return <div
     aria-label={props["aria-label"] || props.label}
-    class={$("lui-radio-group grid gap-2", font)}
+    class={$("lui-radio-group", font,
+      props.orientation === "horizontal"
+        ? "flex flex-wrap gap-4" : "grid gap-2")}
     role="radiogroup"
   >
     {itemsOf(props.items).map((item) => <label
@@ -282,7 +327,7 @@ export function RadioGroup(props: UiProps) {
           tones[props.color || "primary"] || tones.primary,
         )}
         disabled={props.disabled || item.disabled}
-        name={props.name}
+        name={name}
         type="radio"
         value={String(item.value)}
         onChange={() => current.set(item.value)}
@@ -355,18 +400,95 @@ export function Slider(props: UiProps) {
   </label>;
 }
 
-export function FormField(props: UiProps) {
-  return <label class={$("lui-field grid gap-1.5", font)}>
-    {props.label || props.hint ? <span
-      class="flex items-center justify-between text-sm"
-    ><b>{props.label}{props.required ? " *" : ""}</b><i>{props.hint}</i></span>
-      : null}
-    {props.children}
-    {props.error ? <small class={$("$dangerText")}>{props.error}</small>
-      : props.description || props.help ? <small
-        class={$("$muted")}
-      >{props.description || props.help}</small> : null}
-  </label>;
+export type FormFieldProps = UiProps & {
+  orientation?: "vertical" | "horizontal";
+  required?: boolean;
+  error?: string | boolean;
+};
+export function FormField(props: FormFieldProps) {
+  const id = props.id || `lui-field-${++fieldId}`;
+  const message = typeof props.error === "string" ? `${id}-error`
+    : !props.error && (props.description || props.help)
+      ? `${id}-description` : undefined;
+  let observer: MutationObserver | undefined;
+  const saved = new Map<Element, Map<string, {
+    before: string | null;
+    after: string;
+  }>>();
+  const write = (node: Element, key: string, value: string) => {
+    const attrs = saved.get(node) || new Map();
+    const before = attrs.has(key) ? attrs.get(key)!.before
+      : node.getAttribute(key);
+    attrs.set(key, { before, after: value });
+    saved.set(node, attrs);
+    node.setAttribute(key, value);
+  };
+  const ref = (node: Element | null) => {
+    observer?.disconnect();
+    for (const [control, attrs] of saved) {
+      for (const [key, { before, after }] of attrs) {
+        if (control.getAttribute(key) !== after) continue;
+        if (before === null) control.removeAttribute(key);
+        else control.setAttribute(key, before);
+      }
+    }
+    saved.clear();
+    if (!node) return;
+    const connect = () => {
+      const controls = [...node.querySelectorAll<HTMLElement>(
+        'input:not([type="hidden"]), textarea, select, '
+        + 'button[aria-haspopup="listbox"], button[role="switch"]',
+      )];
+      const first = controls[0];
+      const label = node.querySelector<HTMLLabelElement>("label[data-field]");
+      if (first && label) {
+        first.id ||= `${id}-control`;
+        label.htmlFor = first.id;
+      }
+      for (const control of controls) {
+        if (message) {
+          const ids = new Set((control.getAttribute("aria-describedby") || "")
+            .split(/\s+/).filter(Boolean));
+          ids.add(message);
+          write(control, "aria-describedby", [...ids].join(" "));
+        }
+        if (props.error) write(control, "aria-invalid", "true");
+        if (props.required && (controls.length === 1
+          || control.matches('[type="radio"]'))) {
+          write(control, "aria-required", "true");
+          if (control.matches("input, textarea, select")) {
+            write(control, "required", "");
+          }
+        }
+      }
+    };
+    const Observer = node.ownerDocument.defaultView?.MutationObserver;
+    if (Observer) {
+      observer = new Observer(connect);
+      observer.observe(node, { childList: true, subtree: true });
+    }
+    queueMicrotask(() => { if (node.isConnected) connect(); });
+  };
+  return <div class={$("lui-field grid gap-2", font,
+    props.orientation === "horizontal"
+      && "sm:grid-cols-[minmax(8rem,1fr)_minmax(0,2fr)] sm:items-start")}
+    ref={ref}
+  >
+    {props.label || props.hint ? <div
+      class="flex items-baseline justify-between gap-3 text-sm"
+    ><label data-field="" class="font-medium" id={`${id}-label`}>
+        {props.label}{props.required ? <span aria-hidden="true"> *</span> : null}
+      </label><span class={$("text-xs $muted")}>{props.hint}</span></div> : null}
+    <div class="grid min-w-0 gap-1.5">
+      {props.children}
+      {typeof props.error === "string" ? <small
+        class={$("$dangerText")} id={`${id}-error`} role="alert"
+      >{props.error}</small> : !props.error && (props.description || props.help)
+        ? <small class={$("$muted")} id={`${id}-description`}>
+          {props.description || props.help}
+        </small> : null}
+    </div>
+  </div>;
 }
 
 export function FieldGroup(props: UiProps) {
@@ -418,14 +540,15 @@ export function Alert(props: UiProps) {
   const open = state({ value: props.defaultOpen !== false });
   const body = live(() => open.value ? <section class={$(
     "lui-alert flex gap-3 $radius border p-4",
-    "$toneLine",
-    "$toneBg",
-    props.variant === "solid" && "border-transparent bg-[var(--lui-tone)] text-white",
-    props.variant === "outline" && "$bg",
+    props.variant === "solid" ? "border-transparent bg-[var(--lui-tone)] "
+      + "text-[var(--lui-on-action)]"
+      : props.variant === "outline" ? "$toneLine $bg" : "$toneLine $toneBg",
     font,
     toneBox[props.color || "info"],
+    tones[props.color || "primary"] || tones.primary,
   )} role="alert">
-    <Icon class="mt-0.5 text-[var(--lui-tone)]" name={props.icon || "info"} />
+    <Icon class={$("mt-0.5", props.variant !== "solid"
+      && "text-[var(--lui-tone)]")} name={props.icon || "info"} />
     <div class="grid flex-1 gap-1"><b>{props.title}</b>
       {props.description ? <p>{props.description}</p> : props.children}
     </div>
@@ -444,16 +567,18 @@ export function Banner(props: UiProps) {
   const open = state({ value: props.defaultOpen !== false });
   return live(() => open.value ? <section class={$(
     "lui-banner flex items-center gap-3 border p-3",
-    "$toneLine",
-    "$toneBg",
-    props.variant === "solid" && "border-transparent bg-[var(--lui-tone)] text-white",
-    props.variant === "outline" && "$bg",
+    props.variant === "solid" ? "border-transparent bg-[var(--lui-tone)] "
+      + "text-[var(--lui-on-action)]"
+      : props.variant === "outline" ? "$toneLine $bg" : "$toneLine $toneBg",
     font,
     toneBox[props.color || "primary"],
+    tones[props.color || "primary"] || tones.primary,
   )}>
     {props.icon ? <Icon name={props.icon} /> : null}
     <div class="flex-1"><b>{props.title}</b>{props.description
-      ? <p class={$("text-sm $muted")}>{props.description}</p>
+      ? <p class={$("text-sm", props.variant !== "solid" && "$muted")}>
+        {props.description}
+      </p>
       : null}</div>
     {props.actions?.map((item: UiProps) => <Button {...item} size="sm" />)}
     {props.close ? <button aria-label="Close" onClick={() => open.value = false}>
@@ -510,16 +635,33 @@ export function AvatarGroup(props: UiProps) {
   </div>;
 }
 
-export function Card(props: UiProps) {
+export type CardProps = UiProps & {
+  size?: "sm" | "md" | "lg";
+  variant?: "outline" | "soft" | "subtle" | "elevated" | "ghost";
+};
+export function Card(props: CardProps) {
+  const variant = props.variant || "outline";
   return <section {...props.$attrs} class={$(
-    "lui-card $radius border $line",
-    "$bg p-5 shadow-[var(--lui-shadow)]",
+    "lui-card rounded-[calc(var(--lui-radius)*1.5)] border",
+    variant === "ghost" ? "border-transparent bg-transparent"
+      : variant === "soft" ? "border-transparent $soft"
+      : variant === "subtle" ? "$line $soft" : "$line $bg",
+    variant === "elevated" && "shadow-[var(--lui-shadow)]",
+    props.size === "sm" ? "p-3" : props.size === "lg" ? "p-6" : "p-5",
     font,
   )}>
-    {props.slotHeader ? <header>{props.slotHeader()}</header> : props.title
-      ? <header class="mb-4"><b>{props.title}</b>{props.description
-        ? <p class={$("text-sm $muted")}>{props.description}</p>
-        : null}</header> : null}
+    {props.slotHeader ? <header class="mb-4">{props.slotHeader()}</header>
+      : props.title || props.slotTitle || props.slotActions
+        || props.description || props.slotDescription ? <header
+        class="mb-4 flex items-start justify-between gap-4"
+      >
+        <div class="min-w-0 grid gap-1">
+          {props.slotTitle ? props.slotTitle() : <b>{props.title}</b>}
+          {props.slotDescription ? props.slotDescription() : props.description
+            ? <p class={$("text-sm $muted")}>{props.description}</p> : null}
+        </div>
+        {props.slotActions?.()}
+      </header> : null}
     {props.children}
     {props.slotFooter ? <footer class="mt-4">{props.slotFooter()}</footer> : null}
   </section>;
@@ -840,12 +982,23 @@ function tableLabel(key: string) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-export function Table(props: UiProps) {
+export type TableProps = UiProps & {
+  caption?: string;
+  density?: "compact" | "normal" | "comfortable";
+  empty?: string;
+  loading?: boolean;
+  sticky?: boolean;
+  striped?: boolean;
+  hover?: boolean;
+};
+export function Table(props: TableProps) {
   const rows = props.data || props.rows || [];
   const columns = props.columns || Object.keys(rows[0] || {}).map((key) => ({
     key,
     label: tableLabel(key),
   }));
+  const padding = props.density === "compact" ? "px-3 py-1.5"
+    : props.density === "comfortable" ? "px-4 py-4" : "px-3 py-2.5";
   return <div class={$(
     "lui-table-wrap overflow-x-auto $radius",
     "border $line",
@@ -853,15 +1006,32 @@ export function Table(props: UiProps) {
     <table class={$(
       "lui-table w-full border-collapse text-left text-sm",
       font,
-    )}>
-      <thead class={$("$soft")}><tr>{columns.map((column: any) => <th
-        class={$("border-b $line px-3 py-2 font-semibold")}
+    )} aria-busy={props.loading || undefined}>
+      {props.caption ? <caption class={$(
+        "caption-bottom p-3 text-sm $muted",
+      )}>{props.caption}</caption> : null}
+      <thead class={$("$soft", props.sticky && "sticky top-0 z-10")}>
+        <tr>{columns.map((column: any) => <th
+        scope="col"
+        class={$("border-b $line font-medium", padding)}
       >{column.label || column.header || column.title}</th>)}</tr></thead>
-      <tbody>{rows.map((row: any) => <tr
-        class={$("border-b $line last:border-0")}
+      <tbody>{props.loading || !rows.length ? <tr><td
+        colspan={Math.max(1, columns.length)}
+        class={$("px-4 py-12 text-center $muted")}
+      ><div role="status">{props.loading
+          ? props.slotLoading?.() || "Loading…"
+          : props.slotEmpty?.() || props.empty || "No results."}
+        </div></td></tr> : rows.map((row: any) => <tr
+        class={$(
+          "border-b $line last:border-0 transition-colors",
+          props.striped && "even:bg-[var(--lui-soft)]",
+          props.hover && "$hoverSoft",
+        )}
       >{columns.map((column: any) => {
         const key = column.key || column.accessorKey;
-        return <td class="px-3 py-2">{column.cell ? column.cell(row) : row[key]}</td>;
+        return <td class={padding}>
+          {column.cell ? column.cell(row) : row[key]}
+        </td>;
       })}</tr>)}</tbody>
     </table>
   </div>;

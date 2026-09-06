@@ -2,11 +2,10 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "@luon/view/jsx-runtime";
 import { liveView as live, passProps, state, } from "@luon/view";
 import { Icon } from "./icon.view.js";
-import { tones } from "./skin.ts";
-import { $, itemsOf, model, place, read, resetPlace, target, } from "./util.ts";
+import { focus, font, tones } from "./skin.ts";
+import { $, itemsOf, menuKeys, model, place, read, resetPlace, target, } from "./util.ts";
 import { uiProps } from "./props.ts";
 import { bindView as __bind, liveView as __live, namedViews as __namedViews } from "@luon/view";
-const font = "font-[family-name:var(--lui-font)] $text";
 function childrenOf(children) {
     const values = [];
     const add = (value) => {
@@ -36,34 +35,44 @@ function TreeNode(props, item, level) {
     }
     return _jsxs("details", { open: source.defaultOpen || props.defaultOpenAll, children: [_jsx("summary", { class: $("cursor-pointer rounded px-2 py-1.5 $hoverSoft"), style: { paddingLeft: `${level * 1.25 + .5}rem` }, children: label }), children.map((child) => TreeNode(props, child, level + 1))] });
 }
-function menuItems(values, close) {
-    return values.flat(Infinity).map((value, index) => {
+function menuItems(values, close, disabled = false) {
+    return values.flat(Infinity).map((value) => {
         const source = value;
         const item = itemsOf([value])[0];
         if (source?.type === "separator") {
-            return _jsx("hr", { class: $("my-1 $line") });
+            return _jsx("hr", { class: $("my-1 $line"), role: "separator" });
         }
         if (source?.type === "label") {
-            return _jsx("span", { class: $("px-3 py-1 text-xs $muted"), children: item.label });
+            return _jsx("span", { class: $("px-3 py-1 text-xs font-medium $muted"), children: item.label });
         }
-        const body = _jsxs(_Fragment, { children: [item.icon ? _jsx(Icon, { name: item.icon }) : null, _jsxs("span", { class: "grid flex-1", children: [_jsx("span", { children: item.label }), item.description
-                            ? _jsx("small", { class: $("$muted"), children: item.description })
-                            : null] }), source?.kbds?.length ? _jsx("kbd", { children: source.kbds.join("+") }) : null] });
-        if (source?.to || source?.href) {
-            return _jsx("a", { class: $("flex items-center gap-2 rounded px-3 py-2 $hoverSoft"), href: source.to || source.href, role: "menuitem", onClick: close, children: body });
-        }
-        return _jsx("button", { class: $("flex items-center gap-2 rounded px-3 py-2 text-left", "$hoverSoft", ["danger", "error"].includes(source?.color)
-                && "$dangerText"), disabled: item.disabled, role: "menuitem", type: "button", onClick: () => {
-                source?.onSelect?.();
-                source?.onClick?.();
-                close();
-            }, children: body });
+        const locked = disabled || item.disabled;
+        const choose = (event) => {
+            if (locked) {
+                event.preventDefault();
+                return;
+            }
+            close();
+            source?.onSelect?.();
+            source?.onClick?.(event);
+        };
+        const body = _jsxs(_Fragment, { children: [item.icon ? _jsx(Icon, { class: "shrink-0", name: item.icon }) : null, _jsxs("span", { class: "grid flex-1", children: [_jsx("span", { children: item.label }), item.description
+                            ? _jsx("small", { class: $("$muted"), children: item.description }) : null] }), source?.kbds?.length ? _jsx("kbd", { class: $("ml-4 text-xs $muted"), children: source.kbds.join("+") }) : null] });
+        const style = $("flex items-center gap-2 rounded px-3 py-2 text-left text-sm", "$hoverSoft focus-visible:bg-[var(--lui-soft)] outline-none", "disabled:opacity-40 aria-disabled:opacity-40", ["danger", "error"].includes(source?.color) && "$dangerText");
+        return source?.to || source?.href ? _jsx("a", { "aria-disabled": locked || undefined, class: style, href: locked ? undefined : source.to || source.href, role: "menuitem", tabindex: -1, onClick: choose, children: body }) : _jsx("button", { class: style, disabled: locked, role: "menuitem", tabindex: -1, type: "button", onClick: choose, children: body });
     });
 }
 let menuId = 0;
 function dateOf(value) {
-    if (value instanceof Date)
-        return value;
+    if (value instanceof Date) {
+        return Number.isNaN(value.getTime()) ? undefined : value;
+    }
+    if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        const [year, month, day] = value.split("-").map(Number);
+        const date = new Date(0);
+        date.setFullYear(year, month - 1, day);
+        date.setHours(0, 0, 0, 0);
+        return dayKey(date) === value ? date : undefined;
+    }
     if (typeof value === "string" || typeof value === "number") {
         const date = new Date(value);
         return Number.isNaN(date.getTime()) ? undefined : date;
@@ -127,78 +136,163 @@ export const { Carousel, Marquee, Tree, DropdownMenu, ContextMenu, Calendar, } =
     DropdownMenu: function DropdownMenu(props) {
         const id = props.id || `lui-menu-${++menuId}`;
         let menu = null;
+        let root = null;
         let anchor = null;
-        const close = () => menu?.hidePopover?.();
+        let opened = false;
+        const sync = () => {
+            anchor ||= root?.querySelector(`[popovertarget="${id}"]`)
+                || null;
+            anchor?.setAttribute("aria-expanded", String(opened));
+            anchor?.setAttribute("aria-controls", id);
+            anchor?.setAttribute("aria-haspopup", "menu");
+        };
+        const close = () => {
+            opened = false;
+            sync();
+            menu?.hidePopover?.();
+            if (anchor?.isConnected)
+                anchor.focus();
+        };
+        const open = (last = false) => {
+            if (props.disabled || !menu)
+                return;
+            opened = true;
+            sync();
+            menu.showPopover?.();
+            if (anchor)
+                place(menu, anchor, props.align, props.width, props.side);
+            const nodes = [...menu.querySelectorAll('[role="menuitem"]')]
+                .filter((node) => !node.matches(':disabled, [aria-disabled="true"]'));
+            (last ? nodes.at(-1) : nodes[0])?.focus();
+        };
         const source = props.slotTrigger?.() ?? props.trigger ?? props.children;
+        const attrs = { "aria-controls": id, "aria-expanded": false,
+            "aria-haspopup": "menu", popovertarget: id,
+            ...(props.disabled ? { disabled: true } : {}) };
         let trigger;
-        if (source instanceof Element) {
-            if (source.matches("button, a, [role=button]")) {
-                source.setAttribute("popovertarget", id);
-                anchor = source;
+        if (source instanceof HTMLElement) {
+            anchor = source.matches("button, a, [role=button]") ? source
+                : source.querySelector("button, a, [role=button]");
+            if (anchor) {
+                for (const [key, value] of Object.entries(attrs)) {
+                    anchor.setAttribute(key, String(value));
+                }
                 trigger = source;
             }
-            else {
-                trigger = _jsx("span", { class: "contents", onClick: (event) => {
-                        const clicked = event.target instanceof Element
-                            ? event.target.closest("button, a, [role=button]")
-                            : null;
-                        anchor = clicked || source;
-                        menu?.togglePopover?.();
-                    }, children: source });
-            }
+            else
+                trigger = _jsx("button", { ...attrs, type: "button", children: source });
         }
-        else if (passProps(source, { popovertarget: id })) {
+        else if (passProps(source, attrs))
             trigger = source;
-        }
-        else {
-            trigger = _jsxs("button", { class: $("inline-flex items-center gap-2 rounded border", "$line px-3 py-2 text-sm"), popovertarget: id, ref: (node) => anchor = node, type: "button", children: [source ?? props.label ?? "Menu", _jsx(Icon, { class: "mr-1", name: "chevron-down" })] });
-        }
-        return _jsxs(_Fragment, { children: [trigger, _jsx("div", { class: $("lui-menu m-0 hidden min-w-48 gap-0.5 open:grid", "$radius", "border $line $bg p-1 shadow-xl", font), id: id, popover: "auto", ref: (node) => menu = node, role: "menu", onToggle: () => {
-                        anchor ||= document.querySelector(`[popovertarget="${id}"]`);
-                        if (!menu || !anchor)
-                            return;
-                        const open = menu.matches(":popover-open");
-                        anchor.setAttribute("aria-expanded", String(open));
-                        if (open)
-                            place(menu, anchor, props.align, props.width);
-                    }, children: menuItems(props.items || [], close) })] });
+        else
+            trigger = _jsxs("button", { ...attrs, class: $("inline-flex items-center gap-2 $radius border $line $bg", "px-3 py-2 text-sm disabled:opacity-50", focus), type: "button", children: [source ?? props.label ?? "Menu", _jsx(Icon, { class: "mr-1", name: "chevron-down" })] });
+        return _jsxs("span", { class: "lui-menu-root contents", ref: (node) => {
+                root = node;
+                if (node)
+                    queueMicrotask(() => { if (node.isConnected)
+                        sync(); });
+            }, onClick: (event) => {
+                if (event.defaultPrevented || menu?.contains(event.target))
+                    return;
+                const node = event.target instanceof Element
+                    ? event.target.closest("button, a, [role=button]") : null;
+                if (!node)
+                    return;
+                event.preventDefault();
+                anchor = node;
+                if (!props.disabled) {
+                    if (opened)
+                        close();
+                    else
+                        open();
+                }
+            }, onKeyDown: (event) => {
+                if (!menu || event.defaultPrevented || event.isComposing)
+                    return;
+                if (menu.contains(event.target))
+                    menuKeys(event, menu, close);
+                else if (["ArrowDown", "ArrowUp", "Enter", " "].includes(event.key)) {
+                    event.preventDefault();
+                    anchor = event.target;
+                    open(event.key === "ArrowUp");
+                }
+            }, children: [trigger, _jsx("div", { class: $("lui-menu m-0 hidden min-w-48 gap-0.5 open:grid", "$radius border $line $bg p-1 shadow-[var(--lui-shadow-overlay)]", font), id: id, popover: "auto", role: "menu", ref: (node) => menu = node, onToggle: (event) => {
+                        const shown = event.newState === "open";
+                        if (shown && !opened)
+                            open();
+                        else {
+                            opened = shown;
+                            sync();
+                        }
+                    }, children: menuItems(props.items || [], close, props.disabled) })] });
     },
     ContextMenu: function ContextMenu(props) {
         let menu = null;
-        const close = () => menu?.hidePopover?.();
+        let root = null;
+        let anchor = null;
         let unbind = () => { };
-        const bind = (node) => {
+        const close = (restore = true) => {
             unbind();
             unbind = () => { };
-            if (!node)
+            menu?.hidePopover?.();
+            if (restore && anchor?.isConnected)
+                anchor.focus();
+        };
+        const open = (x, y) => {
+            if (!menu || !root || props.disabled)
                 return;
-            const doc = node.ownerDocument;
+            close(false);
+            resetPlace(menu);
+            if (props.width !== undefined) {
+                menu.style.width = typeof props.width === "number"
+                    ? `${props.width}px` : props.width;
+            }
+            menu.showPopover?.();
+            menu.style.maxWidth = `${Math.max(0, innerWidth - 16)}px`;
+            menu.style.maxHeight = `${Math.max(0, innerHeight - 16)}px`;
+            menu.style.overflowY = "auto";
+            menu.style.left = `${Math.max(8, Math.min(x, innerWidth - menu.offsetWidth - 8))}px`;
+            menu.style.top = `${Math.max(8, Math.min(y, innerHeight - menu.offsetHeight - 8))}px`;
+            menu.querySelector('[role="menuitem"]:not(:disabled):not([aria-disabled="true"])')?.focus();
+            const doc = root.ownerDocument;
             const outside = (event) => {
-                if (!(event.target instanceof Node) || menu?.contains(event.target)) {
-                    return;
-                }
-                close();
+                if (!menu?.contains(event.target))
+                    close(false);
             };
-            const keydown = (event) => {
+            const key = (event) => {
                 if (event.key === "Escape")
                     close();
             };
             doc.addEventListener("pointerdown", outside, true);
-            doc.addEventListener("keydown", keydown);
+            doc.addEventListener("keydown", key);
             unbind = () => {
                 doc.removeEventListener("pointerdown", outside, true);
-                doc.removeEventListener("keydown", keydown);
+                doc.removeEventListener("keydown", key);
             };
         };
-        return _jsxs("div", { class: "lui-context", ref: bind, onContextMenu: (event) => {
-                event.preventDefault();
-                if (!menu)
+        return _jsxs("div", { class: "lui-context", tabindex: props.disabled ? -1 : 0, "aria-label": props["aria-label"], ref: (node) => {
+                unbind();
+                root = node;
+            }, onKeyDown: (event) => {
+                if (menu?.contains(event.target)) {
+                    menuKeys(event, menu, close);
+                }
+                else if (event.key === "ContextMenu"
+                    || (event.shiftKey && event.key === "F10")) {
+                    event.preventDefault();
+                    anchor = event.target;
+                    const box = anchor.getBoundingClientRect();
+                    open(box.left, box.bottom);
+                }
+            }, onContextMenu: (event) => {
+                if (props.disabled)
                     return;
-                resetPlace(menu);
-                menu.style.left = `${event.clientX}px`;
-                menu.style.top = `${event.clientY}px`;
-                menu.showPopover?.();
-            }, children: [props.children, _jsx("div", { class: $("lui-context-menu fixed m-0 hidden min-w-48 gap-0.5 open:grid", "$radius border $line", "$bg p-1 shadow-xl", font), popover: "manual", ref: (node) => menu = node, role: "menu", children: menuItems(props.items || [], close) })] });
+                event.preventDefault();
+                anchor = event.target instanceof HTMLElement
+                    && event.target.matches("button, a, input, [tabindex]")
+                    ? event.target : root;
+                open(event.clientX, event.clientY);
+            }, children: [props.children, _jsx("div", { class: $("lui-context-menu fixed m-0 hidden min-w-48 gap-0.5 open:grid", "$radius border $line $bg p-1 shadow-[var(--lui-shadow-overlay)]", font), popover: "manual", role: "menu", ref: (node) => menu = node, children: menuItems(props.items || [], close, props.disabled) })] });
     },
     Calendar: function Calendar(props) {
         const selected = model(props, props.defaultValue);
@@ -211,7 +305,17 @@ export const { Carousel, Marquee, Tree, DropdownMenu, ContextMenu, Calendar, } =
         });
         const locale = props.locale || "en-US";
         const weekStartsOn = Number(props.weekStartsOn ?? 0);
+        const blocked = (date) => {
+            const min = dateOf(props.min);
+            const max = dateOf(props.max);
+            const key = dayKey(date);
+            return Boolean(props.disabled || props.readOnly
+                || (min && key < dayKey(min)) || (max && key > dayKey(max))
+                || props.isDateDisabled?.(date));
+        };
         const select = (date) => {
+            if (blocked(date))
+                return;
             const value = read(selected.value);
             const start = dateOf(value?.start || value?.from);
             const end = dateOf(value?.end || value?.to);
@@ -273,11 +377,8 @@ export const { Carousel, Marquee, Tree, DropdownMenu, ContextMenu, Calendar, } =
                             const inRange = Boolean(props.range && rangeStart && rangeEnd
                                 && date >= rangeStart && date <= rangeEnd);
                             const outside = date.getMonth() !== shown.getMonth();
-                            const min = dateOf(props.min);
-                            const max = dateOf(props.max);
-                            const disabled = Boolean(props.disabled
-                                || (min && date < min) || (max && date > max)
-                                || props.isDateDisabled?.(date));
+                            const hidden = outside && props.showOutside === false;
+                            const disabled = blocked(date) || hidden;
                             const day = {
                                 active,
                                 date,
@@ -287,10 +388,14 @@ export const { Carousel, Marquee, Tree, DropdownMenu, ContextMenu, Calendar, } =
                                 outside,
                                 today: sameDay(new Date(), date),
                             };
-                            return _jsx("button", { "aria-label": new Intl.DateTimeFormat(locale, { dateStyle: "long" })
-                                    .format(date), "aria-pressed": active, class: $("lui-calendar__day grid min-h-9 place-items-center rounded text-sm", "$hoverSoft disabled:opacity-30", outside && "outside $muted opacity-60", day.today && "today font-bold $actionText", inRange && !active && "between $actionSoft", active && "active $actionBg text-white", props.variant === "planner" && "min-h-20 content-start p-1"), disabled: disabled, type: "button", onClick: () => select(date), children: outside && props.showOutside === false ? null
+                            return _jsx("button", { "aria-hidden": hidden || undefined, "aria-label": new Intl.DateTimeFormat(locale, { dateStyle: "long" })
+                                    .format(date), "aria-pressed": active, class: $("lui-calendar__day grid min-h-9 place-items-center rounded text-sm", "$hoverSoft disabled:opacity-30", outside && "outside $muted opacity-60", day.today && "today font-bold $actionText", inRange && !active && "between $actionSoft", active && "active $actionBg text-[var(--lui-on-action)]", props.variant === "planner" && "min-h-20 content-start p-1"), disabled: disabled, tabindex: hidden ? -1 : undefined, type: "button", onClick: () => select(date), children: outside && props.showOutside === false ? null
                                     : props.renderDay?.(day) ?? date.getDate() });
-                        }) }), props.showToday || props.showClear ? _jsxs("footer", { class: $("flex items-center justify-end gap-2 border-t $line pt-3"), children: [props.showClear ? _jsx("button", { class: $("rounded px-2 py-1 text-sm $muted $hoverSoft"), type: "button", onClick: () => selected.set(props.multiple ? [] : undefined), children: "Clear" }) : null, props.showToday ? _jsx("button", { class: $("rounded px-2 py-1 text-sm font-semibold $actionText $hoverSoft"), type: "button", onClick: () => {
+                        }) }), props.showToday || props.showClear ? _jsxs("footer", { class: $("flex items-center justify-end gap-2 border-t $line pt-3"), children: [props.showClear ? _jsx("button", { class: $("rounded px-2 py-1 text-sm $muted $hoverSoft"), type: "button", disabled: props.disabled || props.readOnly, onClick: () => {
+                                    if (!props.disabled && !props.readOnly) {
+                                        selected.set(props.multiple ? [] : undefined);
+                                    }
+                                }, children: "Clear" }) : null, props.showToday ? _jsx("button", { disabled: blocked(new Date()), class: $("rounded px-2 py-1 text-sm font-semibold $actionText $hoverSoft"), type: "button", onClick: () => {
                                     const today = new Date();
                                     month.value = new Date(today.getFullYear(), today.getMonth(), 1);
                                     select(today);

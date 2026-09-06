@@ -10,10 +10,13 @@ export const baseProps = r.object({
   style: any(), ui: any(), value: any(),
 }).passthrough();
 export const controlProps = baseProps.extend({
-  defaultValue: any(), size: size(), variant: r.string().optional(),
+  defaultValue: any(), size: size(),
+  variant: r.enum(["outline", "soft", "subtle", "ghost", "none"])
+    .default("outline"),
 });
 export const buttonProps = baseProps.extend({
   block: r.boolean(),
+  square: r.boolean(),
   color: r.enum([
     "danger", "error", "neutral", "primary",
     "secondary", "success", "warning",
@@ -22,6 +25,8 @@ export const buttonProps = baseProps.extend({
   icon: r.string().optional(),
   label: any(),
   loading: r.boolean(),
+  loadingIcon: r.string().optional(),
+  slotLeading: any(), slotTrailing: any(),
   size: size(),
   to: r.string().optional(),
   trailing: r.boolean(),
@@ -34,26 +39,59 @@ export const inputProps = controlProps.extend({
   clearable: r.boolean(), color: r.string().optional(), error: any(),
   icon: r.string().optional(), loading: r.boolean(),
   trailingIcon: r.string().optional(),
+  prefix: r.string().optional(), suffix: r.string().optional(),
+  slotLeading: any(), slotTrailing: any(),
   type: r.string().default("text"),
 });
 const omit: Record<string, string[]> = {
   Badge: ["color", "count", "dot", "label", "size", "variant"],
-  Card: ["description", "slotFooter", "slotHeader", "title"],
+  Card: ["description", "slotFooter", "slotHeader", "slotTitle",
+    "slotDescription", "slotActions", "title", "size", "variant"],
   Checkbox: ["checked", "color", "defaultChecked", "description", "label"],
   Draggable: ["axis", "bounds", "defaultValue", "handle", "onEnd", "onMove",
     "onStart", "threshold"],
   Icon: ["name", "size"], Link: ["external", "to", "variant"],
-  Select: ["defaultValue", "items", "placeholder", "size", "variant"],
+  InputNumber: ["color", "defaultValue", "error", "id", "label", "max", "min",
+    "name", "readOnly", "required", "size", "step", "variant"],
+  FileUpload: ["accept", "defaultValue", "description", "icon", "label",
+    "maxFiles", "maxSize", "multiple", "onReject", "readOnly", "removable"],
+  FormField: ["description", "error", "help", "hint", "label",
+    "orientation", "required"],
+  DropdownMenu: ["align", "id", "items", "label", "side", "width"],
+  ContextMenu: ["items", "label", "width"],
+  Modal: ["defaultOpen", "description", "dismissible", "fullscreen",
+    "initialFocus", "label", "onOpenChange", "onUpdate:open", "open",
+    "restoreFocus", "scrollable", "size", "slotFooter", "slotHeader",
+    "title", "width"],
+  Drawer: ["defaultOpen", "description", "dismissible", "initialFocus",
+    "label", "onOpenChange", "onUpdate:open", "open", "restoreFocus",
+    "direction", "size", "slotFooter", "slotHeader", "title", "width"],
+  Select: ["defaultValue", "items", "placeholder", "size", "variant",
+    "color", "error", "readOnly"],
+  SelectMenu: ["align", "clearable", "color", "defaultValue", "empty",
+    "error", "filter", "icon", "ignoreFilter", "items", "loading",
+    "maxVisible", "multiple", "name", "onSearchChange", "placeholder",
+    "readOnly", "searchInput", "searchPlaceholder", "searchTerm", "size",
+    "slotEmpty", "slotItem", "slotValue", "variant", "width"],
   Switch: ["checked", "defaultChecked", "description", "label", "size"],
   Sortable: ["animation", "defaultValue", "direction", "group", "handle",
     "onEnd", "onMove", "onSort", "onStart", "threshold"],
   Term: ["as"], Text: ["as", "color", "size", "weight"],
-  Textarea: ["autoresize", "defaultValue", "size", "variant"],
+  Textarea: ["autoresize", "defaultValue", "size", "variant", "color",
+    "error", "maxRows", "resize"],
+  Table: ["caption", "columns", "data", "density", "empty", "hover",
+    "loading", "rows", "slotEmpty", "slotLoading", "sticky", "striped"],
 };
 export function uiProps(name: string) {
   const fields: Record<string, any> = {};
   for (const key of omit[name] || []) fields[key] = any();
   return baseProps.extend(fields);
 }
-export type ButtonProps = UiProps & Partial<RuleOutput<typeof buttonProps>>;
-export type InputProps = UiProps & Partial<RuleOutput<typeof inputProps>>;
+type Slots = {
+  slotLeading?: () => any;
+  slotTrailing?: () => any;
+};
+export type ButtonProps = UiProps & Slots
+  & Partial<RuleOutput<typeof buttonProps>>;
+export type InputProps = UiProps & Slots
+  & Partial<RuleOutput<typeof inputProps>>;

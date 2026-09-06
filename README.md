@@ -72,6 +72,33 @@ Prefer the smallest override that expresses the product design.
 | Complete replacement | Same-name Site component |
 | Private engine host | globalThis.__LUON_CDN__ |
 
+### Control options
+
+| Component | Options |
+| --- | --- |
+| Button | Five sizes, five variants, square icons, loading and addon slots |
+| Input | Outline, soft, subtle, ghost, none; color, prefix, suffix and slots |
+| Textarea | Control variants, resize, autoresize and maxRows |
+| SelectMenu | Search, groups, multiple values, clear, custom items and values |
+| Card | Outline, soft, subtle, elevated, ghost; three sizes and header slots |
+| Table | Density, stripes, hover, sticky header, caption, loading and empty |
+
+Input addons can coexist with loading, clear and password actions. Disabled
+and read-only fields retain their values; clearing returns focus to the input.
+Use `id` with a string `error` to connect Input to its error description.
+
+SelectMenu supports arrow keys, Home, End, Enter and Escape. Group options with
+`{ group, items }`; use `maxVisible` for compact multiple selections. `name`
+adds hidden form inputs for the selected values. Use `searchTerm` with
+`onSearchChange`, `filter` or `ignoreFilter` for custom search. `slotItem`,
+`slotValue` and `slotEmpty` customize the display without replacing selection.
+
+Theme tokens resolve at each component boundary, including nested previews.
+Pair action colors with foreground tokens such as `--ui-primary-foreground`.
+Secondary, error, warning and success have matching foreground tokens. Switch
+the default palette with `data-theme="light"` or `data-theme="dark"`, and
+adjust `--ui-radius` and `--ui-shadow` for the Site's surface treatment.
+
 ## Examples
 
 ### Use global components in a Site
@@ -231,3 +258,32 @@ Protect technical identifiers from browser translation.
 ## License
 
 [MIT](LICENSE) © predeve
+
+## Input and overlay behavior
+
+`FormField` connects its label, description, and error to child inputs. Use
+`required` for native required state and `orientation="horizontal"` for a
+responsive two-column field. Validation remains in Rule or the consuming page.
+
+`InputNumber` emits `undefined` when cleared and respects `min`, `max`, `step`,
+and `readOnly`. Tag entry ignores Enter while an IME composition is active.
+
+`FileUpload` applies `accept`, `maxSize` (bytes), and `maxFiles` to both browsing
+and dropping. Valid files replace the current selection; cancellation or a fully
+rejected selection preserves it. Multiple mode emits `File[]`; single mode emits
+`File | null`. `onReject` receives `{ file, reason }[]`, with `type`, `size`, or
+`count` as the reason. `removable={false}` hides removal actions. `readOnly` and
+`disabled` prevent changes. Send files and validate uploads in the consuming app.
+
+Menus support arrow keys, Home/End, character navigation, and Escape/Tab to close.
+Disabled links cannot navigate or run callbacks. Context menus also open with
+Shift+F10. Dropdown placement accepts `align`, `side`, and `width`.
+
+`Modal` and `Drawer` accept `size` (`sm`, `md`, `lg`, `xl`), `width`, and
+`initialFocus` (a selector inside the dialog). They restore trigger focus by
+default; set `restoreFocus={false}` to opt out. `dismissible={false}` blocks
+Escape and backdrop dismissal while keeping explicit footer close actions usable.
+Use `--ui-shadow-overlay` to customize popup and dialog shadows.
+
+Calendar date-only strings use local calendar dates. Bounds compare whole days;
+Today, Clear, disabled state, and read-only state use the same selection guards.

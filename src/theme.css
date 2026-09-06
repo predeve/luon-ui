@@ -1,40 +1,75 @@
+@import "./scroll.css";
 @import "tailwindcss" source(none);
 @source "./**/*.{ts,tsx}";
+
+@layer components {
+  .lui-font {
+    color: var(--lui-text);
+    font-family: var(--lui-font);
+  }
+}
 
 @keyframes lui-marquee {
   to { transform: translateX(-50%); }
 }
 
-:root {
-  --lui-font: var(--ui-font, var(--font-sans, ui-sans-serif, system-ui,
-    sans-serif));
-  --lui-bg: var(--ui-bg-elevated, var(--ui-bg, #ffffff));
-  --lui-soft: var(--ui-bg-muted, #f4f7f9);
-  --lui-line: var(--ui-border, #d6e0e6);
-  --lui-text: var(--ui-text-highlighted, var(--ui-text, #15242d));
-  --lui-muted: var(--ui-text-muted, #657681);
-  --lui-primary: var(--ui-primary, #087f8c);
-  --lui-secondary: var(--ui-secondary, #6257c7);
-  --lui-danger: var(--ui-error, #d54343);
-  --lui-warning: var(--ui-warning, #b4690e);
-  --lui-success: var(--ui-success, #16815b);
-  --lui-radius: var(--ui-radius, .72rem);
-  --lui-shadow: 0 12px 32px rgb(15 38 52 / 10%);
+:root,
+[data-theme="light"] {
+  --lui-base-bg: #ffffff;
+  --lui-base-soft: #f4f4f5;
+  --lui-base-line: #e4e4e7;
+  --lui-base-text: #18181b;
+  --lui-base-muted: #71717a;
+  --lui-base-primary: #087f8c;
+  --lui-base-secondary: #6257c7;
+  --lui-base-danger: #c93535;
+  --lui-base-warning: #9a570a;
+  --lui-base-success: #16734e;
+  --lui-base-on: #ffffff;
+  --lui-base-shadow: 0 1px 3px rgb(24 24 27 / 6%);
 }
 
 [data-theme="dark"],
 .lui-dark {
-  --lui-bg: #0d1b25;
-  --lui-soft: #132733;
-  --lui-line: #29424f;
-  --lui-text: #eef8fa;
-  --lui-muted: #94aab5;
-  --lui-primary: #46d9cd;
-  --lui-secondary: #a5a0ff;
-  --lui-danger: #fb7185;
-  --lui-warning: #fbbf24;
-  --lui-success: #34d399;
-  --lui-shadow: 0 18px 48px rgb(0 0 0 / 28%);
+  --lui-base-bg: #18181b;
+  --lui-base-soft: #27272a;
+  --lui-base-line: #3f3f46;
+  --lui-base-text: #fafafa;
+  --lui-base-muted: #a1a1aa;
+  --lui-base-primary: #46d9cd;
+  --lui-base-secondary: #b5aaff;
+  --lui-base-danger: #fb7185;
+  --lui-base-warning: #fbbf24;
+  --lui-base-success: #34d399;
+  --lui-base-on: #18181b;
+  --lui-base-shadow: 0 1px 4px rgb(0 0 0 / 22%);
+}
+
+:root,
+[data-theme],
+.lui-dark,
+:where([class^="lui-"], [class*=" lui-"]) {
+  --lui-font: var(--ui-font, var(--font-sans, ui-sans-serif, system-ui,
+    sans-serif));
+  --lui-bg: var(--ui-bg-elevated, var(--ui-bg, var(--lui-base-bg)));
+  --lui-soft: var(--ui-bg-muted, var(--lui-base-soft));
+  --lui-line: var(--ui-border, var(--lui-base-line));
+  --lui-text: var(--ui-text-highlighted, var(--ui-text, var(--lui-base-text)));
+  --lui-muted: var(--ui-text-muted, var(--lui-base-muted));
+  --lui-primary: var(--ui-primary, var(--lui-base-primary));
+  --lui-secondary: var(--ui-secondary, var(--lui-base-secondary));
+  --lui-danger: var(--ui-error, var(--lui-base-danger));
+  --lui-warning: var(--ui-warning, var(--lui-base-warning));
+  --lui-success: var(--ui-success, var(--lui-base-success));
+  --lui-radius: var(--ui-radius, .5rem);
+  --lui-shadow: var(--ui-shadow, var(--lui-base-shadow));
+  --lui-shadow-overlay: var(--ui-shadow-overlay,
+    0 12px 32px rgb(0 0 0 / 16%), 0 2px 6px rgb(0 0 0 / 8%));
+  --lui-on-primary: var(--ui-primary-foreground, var(--lui-base-on));
+  --lui-on-secondary: var(--ui-secondary-foreground, var(--lui-base-on));
+  --lui-on-danger: var(--ui-error-foreground, var(--lui-base-on));
+  --lui-on-warning: var(--ui-warning-foreground, var(--lui-base-on));
+  --lui-on-success: var(--ui-success-foreground, var(--lui-base-on));
 }
 
 .lui-draggable {
@@ -168,8 +203,8 @@
 
 .lui-select[multiple] option:checked {
   background: linear-gradient(var(--lui-primary), var(--lui-primary));
-  color: var(--lui-bg);
-  -webkit-text-fill-color: var(--lui-bg);
+  color: var(--lui-on-primary);
+  -webkit-text-fill-color: var(--lui-on-primary);
 }
 
 .lui-data-table .dt-layout-table > .dt-layout-cell {
@@ -202,7 +237,7 @@
 
 .lui-editor-tools button[aria-pressed="true"] {
   background: var(--lui-primary);
-  color: var(--lui-bg);
+  color: var(--lui-on-primary);
 }
 
 .lui-editor-body .tiptap {
@@ -377,7 +412,7 @@
 
 .lui-calendar__day.active {
   background: var(--lui-primary);
-  color: #fff;
+  color: var(--lui-on-primary);
   font-weight: 700;
   box-shadow: 0 4px 12px
     color-mix(in srgb, var(--lui-primary) 28%, transparent);

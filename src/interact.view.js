@@ -2,13 +2,10 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "@luon/view/jsx-runtime";
 import { liveView as live, state } from "@luon/view";
 import { Icon } from "./icon.view.js";
-import { tones } from "./skin.ts";
+import { focus, font, tones } from "./skin.ts";
 import { $, itemsOf, model, pick, place, read, target, valueOf, } from "./util.ts";
 import { uiProps } from "./props.ts";
 import { bindView as __bind, liveView as __live, namedViews as __namedViews } from "@luon/view";
-const font = "font-[family-name:var(--lui-font)] $text";
-const focus = "focus-visible:outline-3 focus-visible:outline-offset-1 "
-    + "focus-visible:outline-[var(--lui-primary)]";
 let nextId = 0;
 function contentOf(props, item, value) {
     if (typeof props.children === "function") {
@@ -45,7 +42,7 @@ const drawerClass = {
     right: "ml-auto mr-0 h-full max-h-none rounded-r-none",
     top: "mb-auto mt-0 w-full max-w-none rounded-t-none",
 };
-function showDialog(node) {
+function showDialog(node, initialFocus) {
     queueMicrotask(() => {
         if (!node.isConnected)
             return;
@@ -55,6 +52,8 @@ function showDialog(node) {
         catch {
             node.open = true;
         }
+        if (initialFocus)
+            node.querySelector(initialFocus)?.focus();
     });
 }
 function Overlay(props) {
@@ -63,30 +62,75 @@ function Overlay(props) {
     const side = props.kind === "drawer"
         && (direction === "left" || direction === "right");
     const current = model(props, Boolean(props.defaultOpen), props.open ?? valueOf(props));
+    let panel = null;
+    let previous = null;
+    let backdrop = false;
     const set = (value) => {
+        if (value === Boolean(read(current.value)))
+            return;
+        if (value && props.disabled)
+            return;
         current.set(value);
         props.onOpenChange?.(value);
         props["onUpdate:open"]?.(value);
     };
+    const launch = (event) => {
+        previous = event.target instanceof Element
+            ? event.target.closest("button, a, [tabindex]") : null;
+        set(true);
+    };
+    const outside = (event) => {
+        const rect = panel?.getBoundingClientRect();
+        return rect && (event.clientX < rect.left || event.clientX > rect.right
+            || event.clientY < rect.top || event.clientY > rect.bottom);
+    };
+    const widths = { sm: "max-w-sm", md: "max-w-xl",
+        lg: "max-w-3xl", xl: "max-w-5xl" };
     const trigger = props.slotTrigger?.() ?? props.trigger;
     const controlled = props.open !== undefined
         || props.modelValue !== undefined
         || props["model-value"] !== undefined;
     const implicit = trigger === undefined && props.label === undefined;
-    const button = controlled && implicit ? null : trigger === undefined ? _jsx("button", { class: $("$radius $primaryBg px-3 py-2", "text-sm font-semibold text-white"), type: "button", onClick: () => set(true), children: props.label || "Open" }) : _jsx("span", { class: "contents", onClick: () => set(true), children: trigger });
-    const dialog = live(() => Boolean(read(current.value)) ? _jsx("dialog", { "aria-describedby": props.description ? `${id}-description` : undefined, "aria-labelledby": props.title ? `${id}-title` : undefined, class: $("lui-dialog fixed inset-0 m-auto max-h-[90dvh]", "w-[min(36rem,calc(100%-2rem))]", "$radius border $line", "$bg p-0 $text shadow-2xl", "backdrop:bg-black/50", props.scrollable && "overflow-hidden", props.fullscreen && $("m-0 h-dvh w-full max-h-none max-w-none rounded-none"), props.kind === "drawer" && drawerClass[direction], font), ref: (node) => {
-            if (node)
-                showDialog(node);
+    const button = controlled && implicit ? null : trigger === undefined ? _jsx("button", { class: $("$radius $primaryBg px-3 py-2", "text-sm font-semibold text-[var(--lui-on-primary)]"), disabled: props.disabled, type: "button", onClick: launch, children: props.label || "Open" }) : _jsx("span", { class: "contents", onClick: launch, children: trigger });
+    const dialog = live(() => Boolean(read(current.value)) ? _jsx("dialog", { "aria-label": props["aria-label"], "aria-describedby": props.description ? `${id}-description` : undefined, "aria-labelledby": props.title ? `${id}-title` : undefined, class: $("lui-dialog fixed inset-0 m-auto max-h-[90dvh]", !props.fullscreen && (props.size
+            ? $("w-[calc(100%-2rem)]", widths[props.size])
+            : "w-[min(36rem,calc(100%-2rem))]"), "$radius border $line", "$bg p-0 $text shadow-[var(--lui-shadow-overlay)]", "backdrop:bg-black/50", props.scrollable && "overflow-hidden", props.fullscreen && $("m-0 h-dvh w-full max-h-none max-w-none rounded-none"), props.kind === "drawer" && drawerClass[direction], font), style: !props.fullscreen && props.width ? {
+            width: typeof props.width === "number" ? `${props.width}px` : props.width,
+            maxWidth: "calc(100% - 1rem)",
+        } : undefined, ref: (node) => {
+            if (node) {
+                panel = node;
+                previous ||= node.ownerDocument.activeElement;
+                showDialog(panel, props.initialFocus);
+            }
+            else if (panel) {
+                const doc = panel.ownerDocument;
+                const restore = panel.contains(doc.activeElement)
+                    || doc.activeElement === doc.body;
+                const old = panel;
+                panel = null;
+                if (old.open)
+                    old.close();
+                if (restore && props.restoreFocus !== false && previous?.isConnected) {
+                    previous.focus();
+                }
+            }
         }, onCancel: (event) => {
-            if (props.dismissible === false)
-                event.preventDefault();
-            else
+            event.preventDefault();
+            if (props.dismissible !== false)
                 set(false);
+        }, onPointerDown: (event) => {
+            backdrop = event.target === event.currentTarget && Boolean(outside(event));
         }, onClick: (event) => {
-            if (props.dismissible !== false
-                && event.target === event.currentTarget)
+            const dismiss = backdrop && event.target === event.currentTarget
+                && outside(event);
+            backdrop = false;
+            if (dismiss && props.dismissible !== false)
                 set(false);
-        }, onClose: () => set(false), children: _jsxs("div", { class: $("flex min-h-0 flex-col", (side || props.fullscreen) && "h-full", props.scrollable && !props.fullscreen && "max-h-[90dvh]"), children: [_jsxs("header", { class: $("flex shrink-0 items-start justify-between", "gap-4 border-b p-5"), children: [_jsxs("div", { class: "grid gap-1", children: [props.title ? _jsx("b", { id: `${id}-title`, children: props.title }) : null, props.description ? _jsx("p", { class: $("text-sm $muted"), id: `${id}-description`, children: props.description }) : null] }), props.dismissible === false ? null : _jsx("button", { "aria-label": "Close", class: $("rounded p-1 $hoverSoft"), type: "button", onClick: () => set(false), children: _jsx(Icon, { name: "x" }) })] }), _jsx("div", { class: "min-h-0 flex-1 overflow-y-auto p-5", children: props.slotBody?.() || props.content || props.body || props.children }), props.slotFooter ? _jsx("footer", { class: "shrink-0 border-t p-5", children: props.slotFooter(() => set(false)) }) : null] }) }) : null);
+        }, onClose: (event) => {
+            if (panel && event.currentTarget === panel)
+                set(false);
+        }, children: _jsxs("div", { class: $("flex min-h-0 flex-col", (side || props.fullscreen) && "h-full", props.scrollable && !props.fullscreen && "max-h-[90dvh]"), children: [_jsxs("header", { class: $("flex shrink-0 items-start justify-between", "gap-4 border-b $line p-5"), children: [props.slotHeader ? _jsxs("div", { children: [props.title ? _jsx("span", { class: "sr-only", id: `${id}-title`, children: props.title }) : null, props.description ? _jsx("span", { class: "sr-only", id: `${id}-description`, children: props.description }) : null, props.slotHeader(() => set(false))] }) : _jsxs("div", { class: "grid gap-1", children: [props.title ? _jsx("b", { id: `${id}-title`, children: props.title }) : null, props.description ? _jsx("p", { class: $("text-sm $muted"), id: `${id}-description`, children: props.description }) : null] }), props.dismissible === false ? null : _jsx("button", { "aria-label": "Close", class: $("rounded p-1 $hoverSoft", focus), type: "button", onClick: () => set(false), children: _jsx(Icon, { name: "x" }) })] }), _jsx("div", { class: "min-h-0 flex-1 overflow-y-auto p-5", children: props.slotBody?.() || props.content || props.body || props.children }), props.slotFooter ? _jsx("footer", { class: $("shrink-0 border-t $line p-5"), children: props.slotFooter(() => set(false)) }) : null] }) }) : null);
     return _jsxs(_Fragment, { children: [button, dialog] });
 }
 const __specs = {
@@ -123,15 +167,18 @@ export const { Collapsible, NavigationMenu, CommandPalette, Tabs, Pagination, St
             }) });
     },
     CommandPalette: function CommandPalette(props) {
+        const id = `lui-command-${++nextId}`;
         const items = itemsOf(props.items);
         const query = state({ value: "" });
-        const cursor = state({ value: 0 });
+        const cursor = state({ value: items.findIndex((item) => !item.disabled) });
         const found = () => {
             const needle = query.value.trim().toLocaleLowerCase();
             return needle ? items.filter((item) => (`${item.label} ${item.description || ""}`
                 .toLocaleLowerCase().includes(needle))) : items;
         };
         const choose = (item) => {
+            if (props.disabled || item.disabled)
+                return;
             item.onSelect?.(item);
             props.onSelect?.(item);
             props.onChange?.(item.value);
@@ -139,29 +186,40 @@ export const { Collapsible, NavigationMenu, CommandPalette, Tabs, Pagination, St
         const results = live(() => {
             const values = found();
             if (!values.length)
-                return _jsxs("div", { class: "grid justify-items-center gap-2 p-6", children: [_jsx(Icon, { class: $("$muted"), name: "search-x", size: 22 }), _jsx("small", { class: $("$muted"), children: props.empty || "No commands found" })] });
-            return values.map((item, index) => _jsxs("button", { "aria-selected": cursor.value === index, class: $("flex items-center gap-3 rounded-md px-3 py-2.5 text-left", cursor.value === index ? "$soft $text" : "$muted $hoverSoft"), role: "option", type: "button", onClick: () => choose(item), onMouseEnter: () => cursor.value = index, children: [_jsx("span", { class: $("grid size-8 shrink-0 place-items-center rounded $soft"), children: _jsx(Icon, { name: item.icon || "command" }) }), _jsxs("span", { class: "grid min-w-0 flex-1", children: [_jsx("b", { children: item.label }), item.description
+                return _jsxs("div", { class: "grid justify-items-center gap-2 p-6", role: "status", children: [_jsx(Icon, { class: $("$muted"), name: "search-x", size: 22 }), _jsx("small", { class: $("$muted"), children: props.empty || "No commands found" })] });
+            return values.map((item, index) => _jsxs("button", { "aria-selected": cursor.value === index, disabled: props.disabled || item.disabled, id: `${id}-${index}`, class: $("flex items-center gap-3 rounded-md px-3 py-2.5 text-left", "disabled:opacity-40", cursor.value === index ? "$soft $text" : "$muted $hoverSoft"), role: "option", tabindex: -1, type: "button", onClick: () => choose(item), onMouseEnter: () => { if (!item.disabled)
+                    cursor.value = index; }, children: [_jsx("span", { class: $("grid size-8 shrink-0 place-items-center rounded $soft"), children: _jsx(Icon, { name: item.icon || "command" }) }), _jsxs("span", { class: "grid min-w-0 flex-1", children: [_jsx("b", { children: item.label }), item.description
                                 ? _jsx("small", { class: $("$muted"), children: item.description }) : null] }), item.kbds?.map((key) => _jsx("kbd", { class: $("rounded border $line $soft px-1.5 py-0.5 text-xs"), children: key }))] }));
         });
-        return _jsxs("section", { class: $("lui-command overflow-hidden $radius border $line $bg shadow-xl", font), children: [_jsxs("label", { class: $("flex items-center gap-2 border-b $line px-3"), children: [_jsx(Icon, { class: $("$muted"), name: "search" }), _jsx("input", { "aria-label": props["aria-label"] || "Search commands", class: "min-h-11 min-w-0 flex-1 bg-transparent text-sm outline-none", placeholder: props.placeholder || "Type a command…", value: live(() => query.value), onInput: (event) => {
+        return _jsxs("section", { class: $("lui-command overflow-hidden $radius border $line $bg shadow-xl", font), children: [_jsxs("label", { class: $("flex items-center gap-2 border-b $line px-3"), children: [_jsx(Icon, { class: $("$muted"), name: "search" }), _jsx("input", { "aria-activedescendant": live(() => {
+                                const item = found()[cursor.value];
+                                return item && !item.disabled ? `${id}-${cursor.value}` : undefined;
+                            }), "aria-controls": `${id}-list`, "aria-expanded": "true", "aria-label": props["aria-label"] || "Search commands", disabled: props.disabled, role: "combobox", class: "min-h-11 min-w-0 flex-1 bg-transparent text-sm outline-none", placeholder: props.placeholder || "Type a command…", value: live(() => query.value), onInput: (event) => {
                                 query.value = target(event).value;
-                                cursor.value = 0;
+                                cursor.value = found().findIndex((item) => !item.disabled);
                             }, onKeyDown: (event) => {
+                                if (event.isComposing || props.disabled)
+                                    return;
                                 const values = found();
-                                if (event.key === "ArrowDown") {
+                                const enabled = values.map((item, index) => item.disabled ? -1 : index)
+                                    .filter((index) => index >= 0);
+                                const at = enabled.indexOf(cursor.value);
+                                if (event.key === "ArrowDown" || event.key === "ArrowUp"
+                                    || event.key === "Home" || event.key === "End") {
                                     event.preventDefault();
-                                    cursor.value = (cursor.value + 1) % Math.max(1, values.length);
-                                }
-                                else if (event.key === "ArrowUp") {
-                                    event.preventDefault();
-                                    cursor.value = (cursor.value - 1 + Math.max(1, values.length))
-                                        % Math.max(1, values.length);
+                                    const step = event.key === "ArrowDown" ? 1 : -1;
+                                    cursor.value = event.key === "Home" ? enabled[0] ?? -1
+                                        : event.key === "End" ? enabled.at(-1) ?? -1
+                                            : at < 0 ? (step > 0 ? enabled[0] : enabled.at(-1)) ?? -1
+                                                : enabled[(at + step + enabled.length) % enabled.length] ?? -1;
+                                    document.getElementById(`${id}-${cursor.value}`)
+                                        ?.scrollIntoView?.({ block: "nearest" });
                                 }
                                 else if (event.key === "Enter" && values[cursor.value]) {
                                     event.preventDefault();
                                     choose(values[cursor.value]);
                                 }
-                            } })] }), _jsx("div", { class: "grid max-h-72 gap-1 overflow-y-auto p-1", role: "listbox", children: results })] });
+                            } })] }), _jsx("div", { class: "grid max-h-72 gap-1 overflow-y-auto p-1", role: "listbox", id: `${id}-list`, "aria-label": props.label || "Commands", children: results })] });
     },
     Tabs: function Tabs(props) {
         const items = itemsOf(props.items);
@@ -240,7 +298,7 @@ export const { Collapsible, NavigationMenu, CommandPalette, Tabs, Pagination, St
             : _jsx("button", { "aria-current": value === page() ? "page" : undefined, class: $("rounded-md", size, tone, value === page()
                     ? props.variant === "subtle"
                         ? "$actionSoft $actionText font-semibold"
-                        : "$actionBg text-white"
+                        : "$actionBg text-[var(--lui-on-action)]"
                     : "$hoverSoft"), disabled: props.disabled, type: "button", onClick: () => set(value), children: value })));
         return _jsxs("nav", { "aria-label": props["aria-label"] || "Pagination", class: $("lui-pagination flex items-center gap-1", font), children: [_jsx("button", { "aria-label": "Previous page", class: $("grid place-items-center rounded-md $hoverSoft", size, tone), disabled: pick(current.value, (value) => (props.disabled || Number(value) <= 1)), type: "button", onClick: () => set(page() - 1), children: _jsx(Icon, { name: "chevron-left" }) }), buttons, _jsx("button", { "aria-label": "Next page", class: $("grid place-items-center rounded-md $hoverSoft", size, tone), disabled: pick(current.value, (value) => (props.disabled || Number(value) >= pages)), type: "button", onClick: () => set(page() + 1), children: _jsx(Icon, { name: "chevron-right" }) })] });
     },

@@ -5,7 +5,7 @@ import { SelectMenu } from "./form.view.js";
 import { Icon } from "./icon.view.js";
 import Button from "./button.view.js";
 import Input from "./input.view.js";
-import { control, focus, font, sizes, tones } from "./skin.ts";
+import { control, controlSkin, focus, font, sizes, tones } from "./skin.ts";
 import { $, itemsOf, model, pick, read, target, valueOf, } from "./util.ts";
 import { uiProps } from "./props.ts";
 import { bindView as __bind, liveView as __live, namedViews as __namedViews } from "@luon/view";
@@ -14,7 +14,7 @@ const badgeKinds = {
     soft: "border-transparent "
         + "$actionSoft "
         + "$actionText",
-    solid: "border-transparent $actionBg text-white",
+    solid: "border-transparent $actionBg text-[var(--lui-on-action)]",
     subtle: "border-[color-mix(in_srgb,var(--lui-action)_24%,transparent)] "
         + "bg-[color-mix(in_srgb,var(--lui-action)_7%,var(--lui-bg))] "
         + "$actionText",
@@ -40,6 +40,7 @@ const colors = {
 };
 let accordionId = 0;
 let sliderId = 0;
+let fieldId = 0;
 const toneBox = {
     danger: "[--lui-tone:var(--lui-danger)]",
     error: "[--lui-tone:var(--lui-danger)]",
@@ -109,7 +110,7 @@ export const { Text, Badge, Chip, Kbd, Separator, Textarea, Select, Checkbox, Sw
             : position === "bottom-left" ? "-bottom-1 -left-1"
                 : position === "bottom-right" ? "-bottom-1 -right-1"
                     : "-right-1 -top-1";
-        return _jsxs("span", { class: $("lui-chip relative inline-flex", font, tone), children: [props.children, props.show === false ? null : _jsx("span", { class: $("absolute z-10 grid min-h-4 min-w-4 place-items-center rounded-full", "ring-2 ring-[var(--lui-bg)] $actionBg px-1 text-[.6rem]", "font-semibold text-white", place), children: props.text ?? props.label ?? props.value })] });
+        return _jsxs("span", { class: $("lui-chip relative inline-flex", font, tone), children: [props.children, props.show === false ? null : _jsx("span", { class: $("absolute z-10 grid min-h-4 min-w-4 place-items-center rounded-full", "ring-2 ring-[var(--lui-bg)] $actionBg px-1 text-[.6rem]", "font-semibold text-[var(--lui-on-action)]", place), children: props.text ?? props.label ?? props.value })] });
     },
     Kbd: function Kbd(props) {
         return _jsx("kbd", { class: $("lui-kbd inline-flex items-center justify-center rounded-md border", "$line $soft px-1.5 py-0.5 text-xs font-semibold $muted shadow-sm", props.size === "sm" && "px-1 py-0.5 text-[.65rem]", props.size === "lg" && "px-2 py-1 text-sm", font), children: props.value ?? props.children });
@@ -120,12 +121,36 @@ export const { Text, Badge, Chip, Kbd, Separator, Textarea, Select, Checkbox, Sw
     },
     Textarea: function Textarea(props) {
         const current = model(props, props.defaultValue ?? "");
-        return _jsx("textarea", { ...props.$attrs, class: $(control, "lui-textarea min-h-24", sizes[props.size || "md"]), value: current.value, onInput: (event) => {
+        const resize = (node) => {
+            if (!props.autoresize)
+                return;
+            node.style.height = "auto";
+            const css = window.getComputedStyle(node);
+            const line = parseFloat(css.lineHeight)
+                || parseFloat(css.fontSize) * 1.5 || 20;
+            const pixels = (value) => parseFloat(value) || 0;
+            const padding = pixels(css.paddingTop) + pixels(css.paddingBottom);
+            const border = pixels(css.borderTopWidth) + pixels(css.borderBottomWidth);
+            const min = Math.max(1, Number(props.rows) || 3);
+            const max = Math.max(min, Number(props.maxRows) || Infinity);
+            const content = node.scrollHeight - padding;
+            const height = Math.max(min * line, Math.min(content, max * line));
+            const extra = css.boxSizing === "border-box" ? padding + border : 0;
+            node.style.height = `${height + extra}px`;
+            node.style.overflowY = content > max * line ? "auto" : "hidden";
+        };
+        return _jsx("textarea", { ...props.$attrs, "aria-invalid": Boolean(props.error) || undefined, disabled: props.disabled, class: $(control, controlSkin(props), "lui-textarea", props.autoresize ? "min-h-0" : "min-h-24", sizes[props.size || "md"], props.resize === false || props.autoresize ? "resize-none"
+                : props.resize === "both" ? "resize" : "resize-y"), ref: (node) => {
+                if (node && props.autoresize)
+                    queueMicrotask(() => {
+                        if (node.isConnected)
+                            resize(node);
+                    });
+            }, value: current.value, onInput: (event) => {
+                if (props.disabled || props.readOnly)
+                    return;
                 const node = target(event);
-                if (props.autoresize) {
-                    node.style.height = "auto";
-                    node.style.height = `${node.scrollHeight}px`;
-                }
+                resize(node);
                 current.set(node.value);
             } });
     },
@@ -134,7 +159,7 @@ export const { Text, Badge, Chip, Kbd, Separator, Textarea, Select, Checkbox, Sw
             return _jsx(SelectMenu, { ...props, searchInput: false });
         }
         const current = model(props, props.defaultValue ?? "");
-        const select = _jsx("select", { ...props.$attrs, class: $(control, "lui-select", sizes[props.size || "md"]), value: undefined, onChange: (event) => {
+        const select = _jsx("select", { ...props.$attrs, class: $(control, controlSkin(props), "lui-select", sizes[props.size || "md"]), value: undefined, disabled: props.disabled, "aria-invalid": Boolean(props.error) || undefined, onChange: (event) => {
                 const node = target(event);
                 const value = [...node.selectedOptions].map((item) => item.value);
                 current.set(value);
@@ -144,21 +169,26 @@ export const { Text, Badge, Chip, Kbd, Separator, Textarea, Select, Checkbox, Sw
     },
     Checkbox: function Checkbox(props) {
         const current = model(props, props.defaultChecked ?? props.checked ?? false, props.checked ?? valueOf(props));
-        return _jsxs("label", { class: $("lui-check inline-flex cursor-pointer items-start gap-2.5", font, tones[props.color || "primary"] || tones.primary), children: [_jsx("input", { ...props.$attrs, checked: pick(current.value, Boolean), class: "peer sr-only", type: "checkbox", onChange: (event) => {
+        return _jsxs("label", { class: $("lui-check inline-flex cursor-pointer items-start gap-2.5", font, tones[props.color || "primary"] || tones.primary), children: [_jsx("input", { ...props.$attrs, disabled: props.disabled, checked: pick(current.value, Boolean), class: "peer sr-only", type: "checkbox", onChange: (event) => {
                         current.set(target(event).checked);
-                    } }), _jsx("i", { class: $("mt-0.5 grid size-5 place-items-center rounded border", "$line $bg text-transparent", "peer-checked:border-[var(--lui-action)]", "peer-checked:bg-[var(--lui-action)] peer-checked:text-white", "peer-focus-visible:outline-3"), children: _jsx(Icon, { name: "check" }) }), _jsxs("span", { class: "grid gap-0.5 text-sm", children: [_jsx("b", { children: props.label ?? props.children }), props.description
+                    } }), _jsx("i", { class: $("mt-0.5 grid size-5 place-items-center rounded border", "$line $bg text-transparent", "peer-checked:border-[var(--lui-action)]", "peer-checked:bg-[var(--lui-action)]", "peer-checked:text-[var(--lui-on-action)]", "peer-focus-visible:outline-3"), children: _jsx(Icon, { name: "check" }) }), _jsxs("span", { class: "grid gap-0.5 text-sm", children: [_jsx("b", { children: props.label ?? props.children }), props.description
                             ? _jsx("small", { class: $("$muted"), children: props.description })
                             : null] })] });
     },
     Switch: function Switch(props) {
         const current = model(props, props.defaultChecked ?? props.checked ?? false, props.checked ?? valueOf(props));
-        return _jsxs("button", { ...props.$attrs, "aria-checked": pick(current.value, Boolean), class: $("lui-switch group inline-flex items-center gap-2.5 text-left", font, focus, tones[props.color || "primary"] || tones.primary), role: "switch", type: "button", onClick: () => current.set(!Boolean(read(current.value))), children: [_jsx("span", { class: $("relative h-6 w-11 shrink-0 rounded-full bg-[var(--lui-line)] transition", "group-aria-checked:bg-[var(--lui-action)]"), children: _jsx("i", { class: $("absolute left-1 top-1 size-4 rounded-full bg-white shadow transition", "group-aria-checked:translate-x-5") }) }), props.label ?? props.children ? _jsxs("span", { class: "grid gap-0.5 text-sm", children: [_jsx("b", { children: props.label ?? props.children }), props.description
+        return _jsxs("button", { ...props.$attrs, disabled: props.disabled, "aria-checked": pick(current.value, Boolean), class: $("lui-switch group inline-flex items-center gap-2.5 text-left", font, focus, tones[props.color || "primary"] || tones.primary), role: "switch", type: "button", onClick: () => {
+                if (!props.disabled)
+                    current.set(!Boolean(read(current.value)));
+            }, children: [_jsx("span", { class: $("relative h-6 w-11 shrink-0 rounded-full bg-[var(--lui-line)] transition", "group-aria-checked:bg-[var(--lui-action)]"), children: _jsx("i", { class: $("absolute left-1 top-1 size-4 rounded-full bg-white shadow transition", "group-aria-checked:translate-x-5") }) }), props.label ?? props.children ? _jsxs("span", { class: "grid gap-0.5 text-sm", children: [_jsx("b", { children: props.label ?? props.children }), props.description
                             ? _jsx("small", { class: $("$muted"), children: props.description })
                             : null] }) : null] });
     },
     RadioGroup: function RadioGroup(props) {
         const current = model(props, props.defaultValue);
-        return _jsx("div", { "aria-label": props["aria-label"] || props.label, class: $("lui-radio-group grid gap-2", font), role: "radiogroup", children: itemsOf(props.items).map((item) => _jsxs("label", { class: "inline-flex items-start gap-2.5 text-sm", children: [_jsx("input", { checked: pick(current.value, (value) => Object.is(value, item.value)), class: $("accent-[var(--lui-action)]", tones[props.color || "primary"] || tones.primary), disabled: props.disabled || item.disabled, name: props.name, type: "radio", value: String(item.value), onChange: () => current.set(item.value) }), _jsxs("span", { class: "grid", children: [_jsx("b", { children: item.label }), item.description
+        const name = props.name || `lui-radio-${++fieldId}`;
+        return _jsx("div", { "aria-label": props["aria-label"] || props.label, class: $("lui-radio-group", font, props.orientation === "horizontal"
+                ? "flex flex-wrap gap-4" : "grid gap-2"), role: "radiogroup", children: itemsOf(props.items).map((item) => _jsxs("label", { class: "inline-flex items-start gap-2.5 text-sm", children: [_jsx("input", { checked: pick(current.value, (value) => Object.is(value, item.value)), class: $("accent-[var(--lui-action)]", tones[props.color || "primary"] || tones.primary), disabled: props.disabled || item.disabled, name: name, type: "radio", value: String(item.value), onChange: () => current.set(item.value) }), _jsxs("span", { class: "grid", children: [_jsx("b", { children: item.label }), item.description
                                 ? _jsx("small", { class: $("$muted"), children: item.description })
                                 : null] })] })) });
     },
@@ -189,9 +219,73 @@ export const { Text, Badge, Chip, Kbd, Separator, Textarea, Select, Checkbox, Sw
                                 : props.format?.(Number(value)) ?? Number(value)) })] }) : null, _jsx("span", { class: "lui-slider__controls", children: controls }), list ? _jsx("datalist", { id: list, children: marks.map((mark) => _jsx("option", { label: String(mark.label ?? mark.value ?? mark), value: Number(mark.value ?? mark) })) }) : null] });
     },
     FormField: function FormField(props) {
-        return _jsxs("label", { class: $("lui-field grid gap-1.5", font), children: [props.label || props.hint ? _jsxs("span", { class: "flex items-center justify-between text-sm", children: [_jsxs("b", { children: [props.label, props.required ? " *" : ""] }), _jsx("i", { children: props.hint })] })
-                    : null, props.children, props.error ? _jsx("small", { class: $("$dangerText"), children: props.error })
-                    : props.description || props.help ? _jsx("small", { class: $("$muted"), children: props.description || props.help }) : null] });
+        const id = props.id || `lui-field-${++fieldId}`;
+        const message = typeof props.error === "string" ? `${id}-error`
+            : !props.error && (props.description || props.help)
+                ? `${id}-description` : undefined;
+        let observer;
+        const saved = new Map();
+        const write = (node, key, value) => {
+            const attrs = saved.get(node) || new Map();
+            const before = attrs.has(key) ? attrs.get(key).before
+                : node.getAttribute(key);
+            attrs.set(key, { before, after: value });
+            saved.set(node, attrs);
+            node.setAttribute(key, value);
+        };
+        const ref = (node) => {
+            observer?.disconnect();
+            for (const [control, attrs] of saved) {
+                for (const [key, { before, after }] of attrs) {
+                    if (control.getAttribute(key) !== after)
+                        continue;
+                    if (before === null)
+                        control.removeAttribute(key);
+                    else
+                        control.setAttribute(key, before);
+                }
+            }
+            saved.clear();
+            if (!node)
+                return;
+            const connect = () => {
+                const controls = [...node.querySelectorAll('input:not([type="hidden"]), textarea, select, '
+                        + 'button[aria-haspopup="listbox"], button[role="switch"]')];
+                const first = controls[0];
+                const label = node.querySelector("label[data-field]");
+                if (first && label) {
+                    first.id ||= `${id}-control`;
+                    label.htmlFor = first.id;
+                }
+                for (const control of controls) {
+                    if (message) {
+                        const ids = new Set((control.getAttribute("aria-describedby") || "")
+                            .split(/\s+/).filter(Boolean));
+                        ids.add(message);
+                        write(control, "aria-describedby", [...ids].join(" "));
+                    }
+                    if (props.error)
+                        write(control, "aria-invalid", "true");
+                    if (props.required && (controls.length === 1
+                        || control.matches('[type="radio"]'))) {
+                        write(control, "aria-required", "true");
+                        if (control.matches("input, textarea, select")) {
+                            write(control, "required", "");
+                        }
+                    }
+                }
+            };
+            const Observer = node.ownerDocument.defaultView?.MutationObserver;
+            if (Observer) {
+                observer = new Observer(connect);
+                observer.observe(node, { childList: true, subtree: true });
+            }
+            queueMicrotask(() => { if (node.isConnected)
+                connect(); });
+        };
+        return _jsxs("div", { class: $("lui-field grid gap-2", font, props.orientation === "horizontal"
+                && "sm:grid-cols-[minmax(8rem,1fr)_minmax(0,2fr)] sm:items-start"), ref: ref, children: [props.label || props.hint ? _jsxs("div", { class: "flex items-baseline justify-between gap-3 text-sm", children: [_jsxs("label", { "data-field": "", class: "font-medium", id: `${id}-label`, children: [props.label, props.required ? _jsx("span", { "aria-hidden": "true", children: " *" }) : null] }), _jsx("span", { class: $("text-xs $muted"), children: props.hint })] }) : null, _jsxs("div", { class: "grid min-w-0 gap-1.5", children: [props.children, typeof props.error === "string" ? _jsx("small", { class: $("$dangerText"), id: `${id}-error`, role: "alert", children: props.error }) : !props.error && (props.description || props.help)
+                            ? _jsx("small", { class: $("$muted"), id: `${id}-description`, children: props.description || props.help }) : null] })] });
     },
     FieldGroup: function FieldGroup(props) {
         return _jsx("div", { class: $("lui-field-group flex gap-3", props.orientation === "vertical" && "flex-col"), children: props.children });
@@ -210,13 +304,18 @@ export const { Text, Badge, Chip, Kbd, Separator, Textarea, Select, Checkbox, Sw
     },
     Alert: function Alert(props) {
         const open = state({ value: props.defaultOpen !== false });
-        const body = live(() => open.value ? _jsxs("section", { class: $("lui-alert flex gap-3 $radius border p-4", "$toneLine", "$toneBg", props.variant === "solid" && "border-transparent bg-[var(--lui-tone)] text-white", props.variant === "outline" && "$bg", font, toneBox[props.color || "info"]), role: "alert", children: [_jsx(Icon, { class: "mt-0.5 text-[var(--lui-tone)]", name: props.icon || "info" }), _jsxs("div", { class: "grid flex-1 gap-1", children: [_jsx("b", { children: props.title }), props.description ? _jsx("p", { children: props.description }) : props.children] }), props.actions?.map((item) => _jsx(Button, { ...item, size: "sm" })), props.close ? _jsx("button", { "aria-label": "Close", class: "rounded p-1", type: "button", onClick: () => open.value = false, children: _jsx(Icon, { name: "x" }) }) : null] }) : null);
+        const body = live(() => open.value ? _jsxs("section", { class: $("lui-alert flex gap-3 $radius border p-4", props.variant === "solid" ? "border-transparent bg-[var(--lui-tone)] "
+                + "text-[var(--lui-on-action)]"
+                : props.variant === "outline" ? "$toneLine $bg" : "$toneLine $toneBg", font, toneBox[props.color || "info"], tones[props.color || "primary"] || tones.primary), role: "alert", children: [_jsx(Icon, { class: $("mt-0.5", props.variant !== "solid"
+                        && "text-[var(--lui-tone)]"), name: props.icon || "info" }), _jsxs("div", { class: "grid flex-1 gap-1", children: [_jsx("b", { children: props.title }), props.description ? _jsx("p", { children: props.description }) : props.children] }), props.actions?.map((item) => _jsx(Button, { ...item, size: "sm" })), props.close ? _jsx("button", { "aria-label": "Close", class: "rounded p-1", type: "button", onClick: () => open.value = false, children: _jsx(Icon, { name: "x" }) }) : null] }) : null);
         return body;
     },
     Banner: function Banner(props) {
         const open = state({ value: props.defaultOpen !== false });
-        return live(() => open.value ? _jsxs("section", { class: $("lui-banner flex items-center gap-3 border p-3", "$toneLine", "$toneBg", props.variant === "solid" && "border-transparent bg-[var(--lui-tone)] text-white", props.variant === "outline" && "$bg", font, toneBox[props.color || "primary"]), children: [props.icon ? _jsx(Icon, { name: props.icon }) : null, _jsxs("div", { class: "flex-1", children: [_jsx("b", { children: props.title }), props.description
-                            ? _jsx("p", { class: $("text-sm $muted"), children: props.description })
+        return live(() => open.value ? _jsxs("section", { class: $("lui-banner flex items-center gap-3 border p-3", props.variant === "solid" ? "border-transparent bg-[var(--lui-tone)] "
+                + "text-[var(--lui-on-action)]"
+                : props.variant === "outline" ? "$toneLine $bg" : "$toneLine $toneBg", font, toneBox[props.color || "primary"], tones[props.color || "primary"] || tones.primary), children: [props.icon ? _jsx(Icon, { name: props.icon }) : null, _jsxs("div", { class: "flex-1", children: [_jsx("b", { children: props.title }), props.description
+                            ? _jsx("p", { class: $("text-sm", props.variant !== "solid" && "$muted"), children: props.description })
                             : null] }), props.actions?.map((item) => _jsx(Button, { ...item, size: "sm" })), props.close ? _jsx("button", { "aria-label": "Close", onClick: () => open.value = false, children: _jsx(Icon, { name: "x" }) }) : null] }) : null);
     },
     Avatar: function Avatar(props) {
@@ -238,10 +337,13 @@ export const { Text, Badge, Chip, Kbd, Separator, Textarea, Select, Checkbox, Sw
         return _jsxs("div", { "aria-label": props["aria-label"] || "Avatar group", class: $("lui-avatar-group inline-flex items-center", font), children: [shown.map((item) => _jsx("span", { class: "-ml-2 first:ml-0", children: _jsx(Avatar, { ...item, size: props.size || item.size }) })), props.children, more ? _jsxs("span", { class: $("-ml-2 grid size-10 place-items-center rounded-full", "border-2 border-[var(--lui-bg)] $soft text-xs font-semibold", props.size === "sm" && "size-8", props.size === "lg" && "size-14 text-sm"), children: ["+", more] }) : null] });
     },
     Card: function Card(props) {
-        return _jsxs("section", { ...props.$attrs, class: $("lui-card $radius border $line", "$bg p-5 shadow-[var(--lui-shadow)]", font), children: [props.slotHeader ? _jsx("header", { children: props.slotHeader() }) : props.title
-                    ? _jsxs("header", { class: "mb-4", children: [_jsx("b", { children: props.title }), props.description
-                                ? _jsx("p", { class: $("text-sm $muted"), children: props.description })
-                                : null] }) : null, props.children, props.slotFooter ? _jsx("footer", { class: "mt-4", children: props.slotFooter() }) : null] });
+        const variant = props.variant || "outline";
+        return _jsxs("section", { ...props.$attrs, class: $("lui-card rounded-[calc(var(--lui-radius)*1.5)] border", variant === "ghost" ? "border-transparent bg-transparent"
+                : variant === "soft" ? "border-transparent $soft"
+                    : variant === "subtle" ? "$line $soft" : "$line $bg", variant === "elevated" && "shadow-[var(--lui-shadow)]", props.size === "sm" ? "p-3" : props.size === "lg" ? "p-6" : "p-5", font), children: [props.slotHeader ? _jsx("header", { class: "mb-4", children: props.slotHeader() })
+                    : props.title || props.slotTitle || props.slotActions
+                        || props.description || props.slotDescription ? _jsxs("header", { class: "mb-4 flex items-start justify-between gap-4", children: [_jsxs("div", { class: "min-w-0 grid gap-1", children: [props.slotTitle ? props.slotTitle() : _jsx("b", { children: props.title }), props.slotDescription ? props.slotDescription() : props.description
+                                        ? _jsx("p", { class: $("text-sm $muted"), children: props.description }) : null] }), props.slotActions?.()] }) : null, props.children, props.slotFooter ? _jsx("footer", { class: "mt-4", children: props.slotFooter() }) : null] });
     },
     Progress: function Progress(props) {
         const source = valueOf(props, 0);
@@ -347,9 +449,13 @@ export const { Text, Badge, Chip, Kbd, Separator, Textarea, Select, Checkbox, Sw
             key,
             label: tableLabel(key),
         }));
-        return _jsx("div", { class: $("lui-table-wrap overflow-x-auto $radius", "border $line"), children: _jsxs("table", { class: $("lui-table w-full border-collapse text-left text-sm", font), children: [_jsx("thead", { class: $("$soft"), children: _jsx("tr", { children: columns.map((column) => _jsx("th", { class: $("border-b $line px-3 py-2 font-semibold"), children: column.label || column.header || column.title })) }) }), _jsx("tbody", { children: rows.map((row) => _jsx("tr", { class: $("border-b $line last:border-0"), children: columns.map((column) => {
+        const padding = props.density === "compact" ? "px-3 py-1.5"
+            : props.density === "comfortable" ? "px-4 py-4" : "px-3 py-2.5";
+        return _jsx("div", { class: $("lui-table-wrap overflow-x-auto $radius", "border $line"), children: _jsxs("table", { class: $("lui-table w-full border-collapse text-left text-sm", font), "aria-busy": props.loading || undefined, children: [props.caption ? _jsx("caption", { class: $("caption-bottom p-3 text-sm $muted"), children: props.caption }) : null, _jsx("thead", { class: $("$soft", props.sticky && "sticky top-0 z-10"), children: _jsx("tr", { children: columns.map((column) => _jsx("th", { scope: "col", class: $("border-b $line font-medium", padding), children: column.label || column.header || column.title })) }) }), _jsx("tbody", { children: props.loading || !rows.length ? _jsx("tr", { children: _jsx("td", { colspan: Math.max(1, columns.length), class: $("px-4 py-12 text-center $muted"), children: _jsx("div", { role: "status", children: props.loading
+                                        ? props.slotLoading?.() || "Loading…"
+                                        : props.slotEmpty?.() || props.empty || "No results." }) }) }) : rows.map((row) => _jsx("tr", { class: $("border-b $line last:border-0 transition-colors", props.striped && "even:bg-[var(--lui-soft)]", props.hover && "$hoverSoft"), children: columns.map((column) => {
                                 const key = column.key || column.accessorKey;
-                                return _jsx("td", { class: "px-3 py-2", children: column.cell ? column.cell(row) : row[key] });
+                                return _jsx("td", { class: padding, children: column.cell ? column.cell(row) : row[key] });
                             }) })) })] }) });
     },
 }, (name) => __specs[name]);

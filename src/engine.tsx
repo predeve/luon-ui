@@ -842,7 +842,7 @@ export function CodeEditor(props: CodeEditorProps) {
     {live(() => current.error ? <span
       class={$(
         "absolute bottom-3 right-3 rounded bg-[var(--lui-danger)]",
-        "px-3 py-2 text-xs text-white shadow",
+        "px-3 py-2 text-xs text-[var(--lui-on-danger)] shadow",
       )}
       role="status"
     >Clipboard access failed.</span> : null)}

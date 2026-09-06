@@ -19,5 +19,9 @@ export type {
   DragAxis, DragBounds, DragDetail, DragPoint, DraggableProps,
   SortDetail, SortGroup, SortableProps,
 } from "./drag.tsx";
-export type { CalendarDay, CalendarProps } from "./more.tsx";
+export type { CalendarDay, CalendarProps, MenuProps } from "./more.tsx";
+export type { FormFieldProps } from "./base.tsx";
+export type { FileReject, FileUploadProps, InputNumberProps } from "./form.tsx";
+export type { OverlayProps } from "./interact.tsx";
 export type { UiProps } from "./types.ts";
+export type { ButtonProps, InputProps } from "./props.ts";
