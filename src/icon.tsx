@@ -12,7 +12,7 @@ const iconTags = new Set([
   "circle", "ellipse", "line", "path", "polygon", "polyline", "rect",
 ]);
 const iconAttrs = new Set([
-  "$", "cy", "d", "fill", "height", "points", "r", "rx", "ry",
+  "cx", "cy", "d", "fill", "height", "points", "r", "rx", "ry",
   "width", "x", "x1", "x2", "y", "y1", "y2",
 ]);
 const remote = new Map<string, Promise<IconNode>>();

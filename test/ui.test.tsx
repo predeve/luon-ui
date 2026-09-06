@@ -632,14 +632,19 @@ test("loads an unbundled Lucide icon from the CDN path", async () => {
   const paths: string[] = [];
   const nodes = await loadIcon("cdn-test-icon", async (path) => {
     paths.push(path);
-    return { default: [["path", { d: "M2 12h20" }]] as any };
+    return { default: [
+      ["circle", { cx: "12", cy: "12", r: "10" }],
+      ["path", { d: "M2 12h20" }],
+    ] as any };
   });
 
   expect(paths).toEqual(["/ui/v3/icons/cdn-test-icon.mjs"]);
-  expect(nodes).toHaveLength(1);
+  expect(nodes).toHaveLength(2);
   expect(iconPath("../circle")).toBeUndefined();
 
   const close = mount(<Icon name="i-lucide-cdn-test-icon" />, document.body);
+  expect(document.querySelector("[data-icon=cdn-test-icon] circle")
+    ?.getAttribute("cx")).toBe("12");
   expect(document.querySelector("[data-icon=cdn-test-icon] path"))
     .toBeTruthy();
   close();
