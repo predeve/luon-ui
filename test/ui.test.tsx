@@ -1382,12 +1382,12 @@ test("renders every lightweight SVG chart family", () => {
   </>, document.body);
 
   expect(document.querySelectorAll(".lui-chart-svg")).toHaveLength(4);
-  expect(document.querySelector(".lui-chart-svg__plot .line")).toBeTruthy();
-  expect(document.querySelectorAll(".lui-chart-svg__circle .slice"))
+  expect(document.querySelector(".lui-chart-stage .line")).toBeTruthy();
+  expect(document.querySelectorAll(".lui-chart-stage .slice"))
     .toHaveLength(3);
-  expect(document.querySelector(".lui-chart-svg__hbars")?.textContent)
-    .toContain("A72%");
-  expect(document.querySelector(".lui-chart-svg__radar .value")).toBeTruthy();
+  expect(document.querySelectorAll(".lui-chart-stage .bar"))
+    .toHaveLength(2);
+  expect(document.querySelector(".lui-chart-stage .radar-area")).toBeTruthy();
   close();
 });
 
@@ -1494,7 +1494,10 @@ test("ships compiled Tailwind utilities inside the package", async () => {
   expect(css).toContain(".lui-editor-body .tiptap");
   expect(css).toContain(".lui-editor-toolbar");
   expect(css).toContain(".lui-data-table .dt-layout-table");
-  expect(css).toContain("--luon-scroll-size:5px");
+  expect(css).toContain("--luon-scroll-size:0px");
+  expect(css).toContain("--luon-scroll-thumb:transparent");
+  expect(css).toContain("--luon-scroll-width:none");
+  expect(css).toContain("scrollbar-width:var(--luon-scroll-width)");
   expect(css).toContain("::-webkit-scrollbar");
   expect(css.length).toBeGreaterThan(1000);
 });

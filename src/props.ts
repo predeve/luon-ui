@@ -2,6 +2,12 @@ import { r, type RuleOutput } from "@luon/rule";
 import type { UiProps } from "./types.ts";
 const any = () => r.any().optional();
 const size = () => r.enum(["xs", "sm", "md", "lg", "xl"]).default("md");
+const chartFields = [
+  "type", "data", "values", "series", "labels", "lineValues", "label",
+  "height", "options", "legend", "tooltip", "axes", "grid", "points",
+  "maxPoints", "stacked", "loading", "empty", "formatValue", "onSelect",
+  "onReady", "ariaLabel",
+];
 export const baseProps = r.object({
   children: any(), class: any(), className: any(),
   disabled: r.boolean(),
@@ -44,6 +50,7 @@ export const inputProps = controlProps.extend({
   type: r.string().default("text"),
 });
 const omit: Record<string, string[]> = {
+  Chart: chartFields, ChartSvg: chartFields,
   Badge: ["color", "count", "dot", "label", "size", "variant"],
   Card: ["description", "slotFooter", "slotHeader", "slotTitle",
     "slotDescription", "slotActions", "title", "size", "variant"],

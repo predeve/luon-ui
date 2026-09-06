@@ -1,5 +1,6 @@
 export * from "./base.view.js";
 export { default as Button } from "./button.view.js";
+export { default as Chart, default as ChartSvg } from "./chart.view.js";
 export * from "./drag.view.js";
 export * from "./engine.view.js";
 export * from "./form.view.js";
@@ -11,6 +12,10 @@ export * from "./more.view.js";
 export * from "./term.view.js";
 export * from "./terms.ts";
 export * from "./translate.ts";
+export type {
+  ChartAxis, ChartData, ChartDataset, ChartHandle, ChartOptions,
+  ChartPoint, ChartSelection, ChartSeries, ChartType,
+} from "./chart-data.ts";
 export type {
   ChartProps, ChartSvgProps, CodeEditorProps, CodeIssue, CodeSuggest, DataColumn,
   DataTableProps, EditorApi, EditorHandle, EditorProps,

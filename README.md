@@ -24,7 +24,8 @@ View components, props, icons, and shared styles ship in the package; large brow
 
 ### Lazy browser engines
 
-Chart, DataTable, Editor, and CodeEditor import their CDN engine only when that component is first rendered.
+DataTable, Editor, and CodeEditor load their CDN engines when first rendered.
+Chart renders native SVG and needs no external chart engine.
 
 ### Site-owned theme
 
@@ -35,6 +36,25 @@ Components inherit --ui-* tokens and the Site font. Tailwind utilities can overr
 Official Sites receive components through Runtime registration; normal View applications import the same components directly.
 
 ## Quick reference
+
+### Scrollbars
+
+Scrollbars default to `0px` with transparent thumbs and tracks. Scrolling
+remains enabled. Import `@luon/ui/style.css` or `@luon/ui/scroll.css`, then
+override the variables on `:root` or a scroll container to show the bars:
+
+```css
+:root {
+  --luon-scroll-size: 5px;
+  --luon-scroll-width: thin;
+  --luon-scroll-thumb: #8b949e;
+  --luon-scroll-track: transparent;
+}
+```
+
+`--luon-scroll-size` controls both axes in WebKit scrollbar implementations.
+Firefox uses `--luon-scroll-width`: `none` (default), `thin`, or `auto`.
+ScrollArea uses these same variables.
 
 ### Component families
 
@@ -55,7 +75,6 @@ Only these features load a larger versioned browser engine.
 
 | Component | Engine | Load point |
 | --- | --- | --- |
-| Chart | Chart.js | First Chart mount |
 | DataTable | DataTables | First DataTable mount |
 | Editor | Tiptap | First Editor mount |
 | CodeEditor | CodeMirror | First CodeEditor mount |
@@ -137,7 +156,7 @@ Set the base before rendering any lazy component.
 ```ts
 globalThis.__LUON_CDN__ = "https://assets.example.com";
 
-const { Chart } = await import("@luon/ui/chart");
+const { Editor } = await import("@luon/ui/editor");
 ```
 
 ### Build a validated form
@@ -206,7 +225,65 @@ Draggable, Sortable, Carousel, Marquee, Tree, and Calendar.
 
 ### `Chart`
 
-Lazy Chart.js canvas wrapper and lifecycle.
+Native SVG chart core with typed data, shared scales, legends, tooltips,
+keyboard selection, live updates, and SVG export. `ChartSvg` is a compatibility
+alias for the same component. `Chart` no longer downloads Chart.js.
+
+Use `data={{ labels, datasets }}` or the shorter `values` / `series` props.
+Types: line, area, bar, horizontal, stacked, mixed, pie, donut/doughnut,
+radar, polarArea, scatter, and bubble. Numeric points use `{ x, y, r? }`;
+`null` and non-finite values are gaps. Empty inputs show an empty state.
+Pie/donut values are normalized by their total, not assumed to be percentages.
+Negative radial values are unsupported; pie/donut/polarArea ignore them.
+
+```tsx
+<Chart
+  type="bar"
+  label="Monthly balance"
+  data={{
+    labels: ["Jan", "Feb", "Mar"],
+    datasets: [
+      { label: "Income", data: [80, 95, 110], borderColor: "#818cf8" },
+      { label: "Costs", data: [-45, -55, -60], borderColor: "#fb7185" }
+    ]
+  }}
+  stacked
+  formatValue={(value) => `$${value}`}
+/>
+```
+
+| Controls | Supported behavior |
+| --- | --- |
+| `height`, `axes`, `grid`, `points` | Responsive plot and compact sparklines |
+| `legend`, `tooltip` | Series/slice toggles and shared value readout |
+| `loading`, `empty` | Loading and empty content |
+| `formatValue` | Value formatting for ticks and tooltips |
+| `maxPoints` | Per-line-segment point budget; default 1000, minimum 4 |
+| `onSelect` | Pointer or Enter/Space selection with series and point indices |
+| `onReady` | Native `{ element, toSVG() }` handle after mount |
+
+Core Chart.js-style options supported: `indexAxis` for bars; `cutout`;
+`plugins.legend.display/position` (top/bottom); `plugins.tooltip.enabled`;
+`interaction.mode` (index/nearest) and `intersect`; `scales.x/y` with
+`display`, `min`, `max`, `beginAtZero`, `stacked`, axis titles and tick
+formatters/limits. Numeric x coordinates use `scales.x.type: "linear"`.
+Radars use `scales.r.min/max` (minimum is zero). Value-axis grid lines can be
+hidden with `grid.display`. Dataset styles include color, fill, border width,
+dash, point radius, stepped lines, bounded smoothing (`tension`), and gaps.
+
+This is a focused API, not a Chart.js configuration interpreter. Version 0.8
+replaces the old canvas wrapper: arbitrary plugins, animation settings,
+log/time scales, multiple y axes, stack groups, zoom/pan and the Chart.js
+instance API are not supported. `onReady` no longer returns a Chart.js object.
+Supply new data through View live values instead of calling `update()`.
+`ChartSvg` single-value donuts now represent totals; use `[72, 28]` for a
+72% share. Smooth curves stay within neighboring values rather than matching
+Chart.js tension interpolation exactly.
+
+Dense line/area paths preserve endpoints and bucket extrema under `maxPoints`.
+Original values remain available for selection and tooltips. Scatter, bubble,
+bar and radial marks are not sampled. Benchmark large datasets for the target
+device; native SVG does not imply faster rendering than canvas.
 
 ### `DataTable`
 

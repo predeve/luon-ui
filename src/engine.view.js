@@ -38,18 +38,6 @@ function stateText(status, name) {
     return live(() => status.value === "ready" ? null : _jsx("span", { class: $("absolute inset-0 grid place-items-center text-sm", status.value === "error" && "$dangerText"), children: status.value === "error" ? `${name} could not be loaded.`
             : `Loading ${name.toLowerCase()}…` }));
 }
-function nums(values) {
-    return (values || []).map((value) => typeof value === "number"
-        ? value : value.y);
-}
-function linePoints(values) {
-    const max = Math.max(1, ...values);
-    const gap = 256 / Math.max(1, values.length - 1);
-    return values.map((value, index) => (`${12 + index * gap},${132 - value / max * 104}`)).join(" ");
-}
-function ChartGrid() {
-    return _jsx("g", { class: "lui-chart-svg__grid", children: _jsx("path", { d: "M12 38H268M12 76H268M12 114H268" }) });
-}
 const editorTicks = new WeakMap();
 export function editorActive(editor, ...args) {
     return live(() => {
@@ -163,76 +151,11 @@ function codeDark(node, props) {
     return Boolean(node.closest('[data-theme="dark"], .lui-dark'));
 }
 const __specs = {
-    Chart: uiProps("Chart"),
-    ChartSvg: uiProps("ChartSvg"),
     DataTable: uiProps("DataTable"),
     Editor: uiProps("Editor"),
     CodeEditor: uiProps("CodeEditor"),
 };
-export const { Chart, ChartSvg, DataTable, Editor, CodeEditor, } = __namedViews({
-    Chart: function Chart(props) {
-        const status = state({ value: "loading" });
-        const ref = connect(async (node) => {
-            const module = await loadModule("/ui/v2/chart.mjs");
-            const chart = new module.default(node, {
-                data: read(props.data),
-                options: {
-                    maintainAspectRatio: false,
-                    responsive: true,
-                    ...props.options,
-                },
-                type: props.type,
-            });
-            let initial = true;
-            const stop = effect(() => {
-                const data = read(props.data);
-                if (initial) {
-                    initial = false;
-                    return;
-                }
-                chart.data = data;
-                chart.update();
-            });
-            props.onReady?.(chart);
-            return () => {
-                stop();
-                chart.destroy();
-            };
-        }, status);
-        return _jsxs("div", { class: "lui-chart relative min-h-48", style: props.height ? { height: `${Number(props.height)}px` } : undefined, children: [_jsx("canvas", { "aria-label": props.ariaLabel || props["aria-label"], ref: ref, role: "img" }), stateText(status, "Chart")] });
-    },
-    ChartSvg: function ChartSvg(props) {
-        const values = nums(props.values).length
-            ? nums(props.values) : [38, 56, 49, 72, 64, 88, 78];
-        const labels = props.labels || values.map((_, index) => String(index + 1));
-        const points = linePoints(values);
-        const max = Math.max(1, ...values);
-        const bars = values.map((value, index) => {
-            const width = 220 / values.length;
-            const height = value / max * 104;
-            return _jsx("rect", { height: height, rx: "5", width: Math.max(8, width - 9), x: 18 + index * width, y: 138 - height });
-        });
-        const chart = props.type === "horizontal" ? _jsx("div", { class: "lui-chart-svg__hbars", children: values.map((value, index) => _jsxs("div", { children: [_jsx("span", { children: labels[index] }), _jsx("i", { children: _jsx("b", { style: { width: `${value}%` } }) }), _jsxs("em", { children: [value, "%"] })] })) }) : props.type === "donut"
-            ? _jsxs("div", { class: "lui-chart-svg__circle", children: [_jsxs("svg", { "aria-label": props["aria-label"] || `${props.type} chart`, role: "img", viewBox: "0 0 120 120", children: [_jsx("circle", { class: "track", cx: "60", cy: "60", r: "44", pathLength: "100" }), _jsx("circle", { class: "value", cx: "60", cy: "60", r: "44", pathLength: "100", style: { strokeDasharray: `${values[0] || 0} 100` } })] }), _jsxs("b", { children: [values[0], "%"] })] }) : props.type === "pie" ? _jsx("div", { class: "lui-chart-svg__circle", children: _jsx("svg", { "aria-label": props["aria-label"] || "Pie chart", role: "img", viewBox: "0 0 120 120", children: values.map((value, index) => _jsx("circle", { class: `slice series-${index}`, cx: "60", cy: "60", pathLength: "100", r: "25", style: {
-                        strokeDasharray: `${value} 100`,
-                        strokeDashoffset: `-${values.slice(0, index)
-                            .reduce((sum, item) => sum + item, 0)}`,
-                    } })) }) }) : props.type === "radar" ? _jsxs("svg", { "aria-label": props["aria-label"] || "Radar chart", class: "lui-chart-svg__radar", role: "img", viewBox: "0 0 220 170", children: [_jsxs("g", { class: "grid", children: [_jsx("polygon", { points: "110,18 190,62 174,145 46,145 30,62" }), _jsx("polygon", { points: "110,42 164,72 153,126 67,126 56,72" }), _jsx("polygon", { points: "110,66 139,82 132,108 88,108 81,82" })] }), _jsx("polygon", { class: "value", points: values.slice(0, 5).map((value, index) => {
-                        const angle = -Math.PI / 2 + index * Math.PI * 2 / 5;
-                        const radius = Math.min(100, value) / 100 * 76;
-                        return `${110 + Math.cos(angle) * radius},`
-                            + `${88 + Math.sin(angle) * radius}`;
-                    }).join(" ") })] }) : props.type === "scatter" ? _jsxs("svg", { "aria-label": props["aria-label"] || "Scatter chart", class: "lui-chart-svg__plot", role: "img", viewBox: "0 0 280 150", children: [_jsx(ChartGrid, {}), _jsx("g", { class: "scatter", children: (props.values || []).map((value, index) => {
-                        const point = typeof value === "number"
-                            ? { x: 12 + index * 40, y: value } : value;
-                        return _jsx("circle", { cx: 12 + Math.min(100, point.x) / 100 * 256, cy: 138 - Math.min(100, point.y) / 100 * 112, r: 4 + index % 3 });
-                    }) }), _jsx("path", { class: "trend", d: "M20 124L264 32" })] })
-            : props.type === "stacked" ? _jsx("svg", { "aria-label": props["aria-label"] || "Stacked chart", class: "lui-chart-svg__plot", role: "img", viewBox: "0 0 280 150", children: _jsx("g", { class: "stacks", children: (props.series || []).flatMap((series, row) => (series.values.map((value, index) => _jsx("rect", { class: `series-${row}`, height: value, rx: "4", width: "28", x: 28 + index * 48, y: 138 - value - (props.series || []).slice(0, row)
-                            .reduce((sum, item) => sum + Number(item.values[index] || 0), 0) })))) }) }) : _jsxs("svg", { "aria-label": props["aria-label"] || `${props.type} chart`, class: "lui-chart-svg__plot", role: "img", viewBox: "0 0 280 150", children: [_jsx(ChartGrid, {}), props.type === "bar" || props.type === "mixed"
-                        ? _jsx("g", { class: "bars", children: bars }) : null, props.type === "area" ? _jsx("path", { class: "area", d: `M${points.replaceAll(" ", "L")}L268,138L12,138Z` }) : null, props.type === "line" || props.type === "area"
-                        ? _jsx("polyline", { class: "line", points: points }) : null, props.type === "mixed" ? _jsx("polyline", { class: "line alt", points: linePoints(props.lineValues || values) }) : null] });
-        return _jsxs("section", { class: $("lui-chart-svg grid gap-3 $radius border $line $bg p-4"), children: [props.label || props.value ? _jsxs("header", { children: [_jsx("span", { children: props.label }), _jsx("b", { children: props.value })] }) : null, chart] });
-    },
+export const { DataTable, Editor, CodeEditor, } = __namedViews({
     DataTable: function DataTable(props) {
         const status = state({ value: "loading" });
         const ref = connect(async (node) => {

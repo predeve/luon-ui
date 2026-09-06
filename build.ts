@@ -40,8 +40,8 @@ for (const group of groups) {
   await Bun.write(types, `export * from "./${group}.tsx";\n`);
 }
 
-if (namedCount !== 66) {
-  throw new Error(`UI needs 66 named Views, found ${namedCount}.`);
+if (namedCount !== 64) {
+  throw new Error(`UI needs 64 named Views, found ${namedCount}.`);
 }
 
 const views = new Bun.Glob("src/*.view.tsx");
