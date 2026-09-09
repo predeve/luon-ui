@@ -34,3 +34,6 @@ export type { ButtonProps, InputProps } from "./props.ts";
 export type {
   TableColumn, TableOptions, TableProps, TableQuery, TableSort,
 } from "./table-data.ts";
+
+export type { EditorMode, EditorFormat, EditorLanguage, EditorOptions }
+  from "./editor-data.ts";

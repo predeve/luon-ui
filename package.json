@@ -1,6 +1,6 @@
 {
   "name": "@luon/ui",
-  "version": "0.9.2",
+  "version": "0.10.1",
   "description": "Native View UI for Luon sites",
   "license": "MIT",
   "keywords": [
@@ -26,7 +26,8 @@
   "type": "module",
   "sideEffects": [
     "./src/scroll.css",
-    "./src/style.css"
+    "./src/style.css",
+    "./src/editor.css"
   ],
   "files": [
     "LICENSE.lucide",
@@ -47,11 +48,16 @@
     "./term": "./src/term.tsx",
     "./terms": "./src/terms.ts",
     "./translate": "./src/translate.ts",
-    "./style.css": "./src/style.css"
+    "./style.css": "./src/style.css",
+    "./editor.css": "./src/editor.css"
   },
   "dependencies": {
-    "@luon/rule": "latest",
-    "@luon/view": "latest",
+    "@lezer/css": "1.3.6",
+    "@lezer/highlight": "1.2.3",
+    "@lezer/javascript": "1.5.4",
+    "@lezer/json": "1.0.3",
+    "@luon/rule": "0.1.3",
+    "@luon/view": "0.1.12",
     "lucide": "1.41.0"
   },
   "devDependencies": {

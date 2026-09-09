@@ -381,7 +381,7 @@ test("protects technical terms and dynamic code from translation", () => {
   code.textContent = "bun run";
   document.body.append(code);
   const editor = document.createElement("div");
-  editor.className = "cm-editor";
+  editor.setAttribute("data-luon-code", "");
   document.body.append(editor);
   const stop = protectCode(document.body);
   expect(code.className).toBe("notranslate");
@@ -650,11 +650,12 @@ test("loads an unbundled Lucide icon from the CDN path", async () => {
   close();
 });
 
-test("provides editor controls before its lazy engine is ready", () => {
+test("provides native editor controls and content synchronously", () => {
   const close = mount(<Editor value="<p>Luon</p>" />, document.body);
   const buttons = document.querySelectorAll(".lui-editor-tools button");
 
-  expect(buttons).toHaveLength(9);
+  expect(buttons.length).toBeGreaterThan(9);
+  expect(document.querySelector(".lui-editor-rich")?.textContent).toBe("Luon");
   expect(buttons[0]?.getAttribute("aria-label")).toBe("Undo");
   expect((buttons[0] as HTMLButtonElement).disabled).toBeTrue();
   close();
@@ -1496,7 +1497,7 @@ test("ships compiled Tailwind utilities inside the package", async () => {
 
   expect(css).toContain("--lui-primary");
   expect(css).toContain(".inline-flex");
-  expect(css).toContain(".lui-editor-body .tiptap");
+  expect(css).toContain(".lui-editor-rich");
   expect(css).toContain(".lui-editor-toolbar");
   expect(css).toContain(".lui-table-root");
   expect(css).toContain("--luon-scroll-size:0px");

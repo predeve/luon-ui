@@ -1,4 +1,5 @@
 @import "./scroll.css";
+@import "./editor.css";
 @import "tailwindcss" source(none);
 @source "./**/*.{ts,tsx}";
 
@@ -128,29 +129,23 @@
   user-select: none !important;
 }
 
-.lui-editor-tools {
-  align-items: center;
-  min-height: 2.75rem;
-  overflow-x: auto;
-}
-
 .lui-editor-toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: .3rem;
+  gap: var(--lui-editor-group-gap, 10px);
   width: 100%;
 }
 
 .lui-editor-toolbar__group {
   display: inline-flex;
   align-items: center;
-  gap: .12rem;
+  flex-wrap: wrap;
+  gap: var(--lui-editor-tool-gap, 6px);
 }
 
 .lui-editor-toolbar__group:not(:last-child) {
-  margin-right: .12rem;
-  padding-right: .42rem;
+  padding-right: var(--lui-editor-group-gap, 10px);
   border-right: 1px solid var(--lui-line);
 }
 
@@ -287,96 +282,6 @@
 }
 .lui-table-columns label { display: flex; gap: .6rem; padding: .4rem; }
 .lui-table-filters :is(input, select) { width: 100%; font-weight: 400; }
-
-.lui-editor-tools button {
-  display: grid;
-  place-items: center;
-  width: 2rem;
-  height: 2rem;
-  padding: 0;
-  border: 0;
-  border-radius: .48rem;
-  background: transparent;
-  color: var(--lui-muted);
-  cursor: pointer;
-}
-
-.lui-editor-tools button:hover:not(:disabled) {
-  background: var(--lui-soft);
-  color: var(--lui-text);
-}
-
-.lui-editor-tools button[aria-pressed="true"] {
-  background: var(--lui-primary);
-  color: var(--lui-on-primary);
-}
-
-.lui-editor-body .tiptap {
-  min-height: 12rem;
-  padding: 1rem 1.1rem;
-  outline: 0;
-  color: var(--lui-text);
-  line-height: 1.65;
-}
-
-.lui-editor-body .tiptap > * + * {
-  margin-top: .75rem;
-}
-
-.lui-editor-body .tiptap h2,
-.lui-editor-body .tiptap h3 {
-  color: var(--lui-text);
-  font-weight: 700;
-  line-height: 1.25;
-}
-
-.lui-editor-body .tiptap h2 {
-  font-size: 1.35rem;
-}
-
-.lui-editor-body .tiptap h3 {
-  font-size: 1.05rem;
-}
-
-.lui-editor-body .tiptap ul,
-.lui-editor-body .tiptap ol {
-  padding-left: 1.3rem;
-}
-
-.lui-editor-body .tiptap ul {
-  list-style: disc;
-}
-
-.lui-editor-body .tiptap ol {
-  list-style: decimal;
-}
-
-.lui-editor-body .tiptap li + li {
-  margin-top: .25rem;
-}
-
-.lui-editor-body .tiptap blockquote {
-  border-left: 3px solid var(--lui-primary);
-  padding: .5rem .8rem;
-  background: var(--lui-soft);
-  color: var(--lui-muted);
-}
-
-.lui-editor-body .tiptap code {
-  border: 1px solid var(--lui-line);
-  border-radius: .3rem;
-  padding: .08rem .3rem;
-  background: var(--lui-soft);
-  font-size: .88em;
-}
-
-.lui-editor-body .tiptap p.is-editor-empty:first-child::before {
-  float: left;
-  height: 0;
-  color: var(--lui-muted);
-  content: attr(data-placeholder);
-  pointer-events: none;
-}
 
 .lui-calendar {
   width: min(100%, 21rem);

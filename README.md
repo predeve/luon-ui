@@ -24,7 +24,7 @@ View components, props, icons, and shared styles ship in the package; large brow
 
 ### Lazy browser engines
 
-Editor and CodeEditor load their CDN engines when first rendered.
+Editor handles rich text, Markdown, and code with its own native DOM core.
 Chart and Table are native components with no CDN engine.
 Chart renders native SVG and needs no external chart engine.
 
@@ -68,16 +68,11 @@ Start with a family, then inspect its live variants on ui.luon.dev.
 | Navigation | Breadcrumb, Tabs, Pagination, Stepper |
 | Overlays | Modal, Drawer, Popover, Tooltip, Toast |
 | Interaction | Draggable, Sortable, DropdownMenu, Tree |
-| Data and editing | Chart, Table, Editor, CodeEditor |
+| Data and editing | Chart, Table, Editor |
 
-### Engine-backed components
+### Native editing and data
 
-Only these features load a larger versioned browser engine.
-
-| Component | Engine | Load point |
-| --- | --- | --- |
-| Editor | Tiptap | First Editor mount |
-| CodeEditor | CodeMirror | First CodeEditor mount |
+Chart, Table, and Editor use native package code and require no CDN engine.
 
 ### Customization order
 
@@ -365,11 +360,11 @@ Native sorting, groups, handles, hints, and motion.
 
 ### `Editor`
 
-Tiptap content, toolbar, and extension wrapper.
+Native rich text, Markdown, and code editing. See Native Editor below.
 
 ### `CodeEditor`
 
-CodeMirror languages, issues, search, and completion.
+Deprecated alias for Editor with mode="code".
 
 ### `CDN loaders`
 
@@ -383,8 +378,8 @@ Protect technical identifiers from browser translation.
 
 1. Import the package stylesheet or use the Runtime-provided global setup.
 2. Render a compiled View boundary with typed props.
-3. The loader resolves the configured CDN base and versioned asset path.
-4. The browser caches the immutable engine for later component mounts.
+3. Native components connect their DOM behavior and subscriptions.
+4. Icon assets may load from the configured CDN; Editor needs no CDN engine.
 
 ## Boundaries
 
@@ -430,3 +425,80 @@ Use `--ui-shadow-overlay` to customize popup and dialog shadows.
 
 Calendar date-only strings use local calendar dates. Bounds compare whole days;
 Today, Clear, disabled state, and read-only state use the same selection guards.
+
+## Native Editor
+
+One component handles rich documents, Markdown, and source code. It does not
+load TipTap, CodeMirror, or another editor from a CDN.
+
+```tsx
+<Editor mode="rich" format="html" bind={data.article} />
+<Editor mode="markdown" bind={data.notes} />
+<Editor mode="code" language="typescript" bind={data.source} />
+<Editor mode="code" language="json" readOnly value={config} />
+```
+
+| Option | Behavior |
+| --- | --- |
+| `mode` | `rich` (default), `markdown`, or `code` |
+| `format` | Stored value: `html`, `markdown`, or `text`; inferred from mode |
+| `language` | JavaScript, TypeScript, JSX, TSX, JSON, CSS, HTML, Markdown, Prisma, or text |
+| `toolbar` | Default controls, `false`, or an ordered array of command groups |
+| `readOnly / disabled` | Block editing; read-only content can still be selected and copied |
+| `minHeight` | Body minimum: `20rem` by default; number means pixels |
+| `lineNumbers / tabSize` | Source gutter and indentation width (1–8 spaces) |
+| `theme` | Inherit the page, or explicitly choose light or dark |
+| `issues / line / jump` | Supplied diagnostic messages and source navigation |
+| `onSave / suggest` | Save shortcut and optional external completion callback |
+
+Toolbar buttons have a 34px minimum target and 6px gaps; groups use 10px gaps.
+Custom EditorToolbar controls share these defaults. View `compact` uses
+an 8rem body. For responsive sizing, set `--lui-editor-min-height` on the
+Editor class; an explicit `minHeight` option takes priority in every mode.
+
+Rich commands include headings, paragraphs, bold, italic, underline,
+strikethrough, lists, quotes, links, code blocks, and alignment. Undo and redo
+belong to the editor and include formatting operations. Paste accepts only
+supported HTML elements, safe link protocols, and alignment; scripts, handlers,
+embedded content, and unsupported attributes are removed.
+
+```tsx
+<Editor
+  toolbar={[
+    ["bold", "italic", "link"],
+    ["left", "center", "right"],
+    ["undo", "redo", "source"],
+  ]}
+  bind={data.note}
+/>
+```
+
+Conflicting mode/format options use the first explicitly declared option.
+Defaults fill unspecified values. Duplicate toolbar commands keep their first
+position. `onConflict(option, reason)` reports an ignored setting. Changing the
+storage format of nonempty content throws; convert the value explicitly first.
+
+Markdown supports headings, paragraphs, emphasis, links, lists, quotes, fenced
+code, and thematic breaks. Supported HTML blocks retain alignment and underline.
+This is a documented Markdown subset, not a complete CommonMark/GFM editor.
+Images, tables, task lists, and footnotes remain editable as source; switching
+these documents to rich mode is refused to avoid losing those blocks.
+Preview never executes source code or raw scripts.
+
+Source editing includes syntax colors, line numbers, Tab/Shift+Tab indentation,
+auto-indent on Enter, literal find/replace, undo/redo, and Cmd/Ctrl+S. Escape
+then Tab leaves the editor. Syntax coloring is a display lexer, not a compiler
+or language service. Files over 200,000 characters remain editable as plain
+text to limit highlighting work. Diagnostics and completion come from the host;
+Ctrl+Space can request completion explicitly. Stale requests are cancelled.
+
+Value updates equal to the current value preserve selection and history.
+Different external values replace the document and clear local undo history.
+IME composition finishes before a queued external replacement is applied.
+
+`CodeEditor` and `@luon/ui/code-editor` remain deprecated aliases for
+`Editor mode="code"`; new examples use only Editor. TipTap extensions are not
+accepted as native commands. Alignment is built in and needs no extension.
+Framework hosts can use `createEditor(element, options)` from `@luon/ui/editor`
+and import `@luon/ui/editor.css`. Call `update` for settings and `destroy` on
+unmount. The regular View component owns that lifecycle automatically.

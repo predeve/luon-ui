@@ -1,0 +1,406 @@
+.lui-editor {
+  --lui-edit-bg: var(--lui-bg, #fff);
+  --lui-edit-text: var(--lui-text, #202024);
+  --lui-edit-muted: var(--lui-muted, #767680);
+  --lui-edit-line: var(--lui-line, #dedee4);
+  --lui-edit-soft: var(--lui-soft, #f5f5f7);
+  --lui-code-keyword: #8250df;
+  --lui-code-string: #116329;
+  --lui-code-number: #0550ae;
+  --lui-code-tag: #953800;
+  --lui-code-function: #6639ba;
+  --lui-code-type: #8250df;
+  --lui-code-atom: #0550ae;
+  --lui-code-attribute: #0550ae;
+  color: var(--lui-edit-text);
+  background: var(--lui-edit-bg);
+  border: 1px solid var(--lui-edit-line);
+  border-radius: var(--lui-radius, 12px);
+  overflow: hidden;
+  min-width: 0;
+  position: relative;
+  font-family: var(--lui-font, system-ui, sans-serif);
+  text-align: left;
+}
+[data-theme="dark"] .lui-editor:not([data-theme="light"]),
+.lui-dark .lui-editor:not([data-theme="light"]),
+.lui-editor[data-theme="dark"] {
+  --lui-edit-bg: #171719;
+  --lui-edit-text: #eeeef0;
+  --lui-edit-muted: #9999a4;
+  --lui-edit-line: #353539;
+  --lui-edit-soft: #232326;
+  /* Match the Luon View source examples. */
+  --lui-code-keyword: #c792ea;
+  --lui-code-string: #a6e3a1;
+  --lui-code-number: #f6c177;
+  --lui-code-tag: #ff7ab2;
+  --lui-code-function: #7dd3fc;
+  --lui-code-type: #c792ea;
+  --lui-code-atom: #f6c177;
+  --lui-code-attribute: #7dd3fc;
+}
+.lui-editor[data-theme="light"] {
+  --lui-edit-bg: #fff;
+  --lui-edit-text: #202024;
+  --lui-edit-muted: #767680;
+  --lui-edit-line: #dedee4;
+  --lui-edit-soft: #f5f5f7;
+}
+[data-theme="dark"] .lui-editor[data-mode="code"]:not([data-theme="light"]),
+.lui-dark .lui-editor[data-mode="code"]:not([data-theme="light"]),
+.lui-editor[data-mode="code"][data-theme="dark"] {
+  --lui-edit-bg: #070c14;
+  --lui-edit-text: #c9d5e4;
+  --lui-edit-muted: #66758a;
+  --lui-edit-line: #202c40;
+  --lui-edit-soft: #0b121e;
+  --lui-code-gutter: #070c14;
+  --lui-code-cursor: #7dd3fc;
+  --lui-code-selection: rgb(128 128 128 / 30%);
+}
+.lui-editor [hidden] {
+  display: none !important;
+}
+.lui-editor button,
+.lui-editor-tools button,
+.lui-editor input,
+.lui-editor textarea {
+  font: inherit;
+  color: inherit;
+  box-sizing: border-box;
+}
+.lui-editor button,
+.lui-editor-tools button {
+  cursor: pointer;
+  border: 0;
+  background: transparent;
+  border-radius: 5px;
+  padding: 8px 10px;
+  min-width: 34px;
+  min-height: 34px;
+  font-size: 12px;
+}
+.lui-editor button:hover,
+.lui-editor button[aria-pressed="true"],
+.lui-editor-tools button:hover,
+.lui-editor-tools button[aria-pressed="true"] {
+  background: var(--lui-edit-line, var(--lui-line, #dedee4));
+}
+.lui-editor button:disabled,
+.lui-editor-tools button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.lui-editor button:focus-visible,
+.lui-editor-tools button:focus-visible,
+.lui-editor-search input:focus-visible {
+  outline: 2px solid var(--lui-focus, #8b80d8);
+  outline-offset: -2px;
+}
+.lui-editor-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lui-editor-group-gap, 10px);
+  padding: 10px;
+  background: var(--lui-edit-soft);
+  border-bottom: 1px solid var(--lui-edit-line);
+}
+.lui-editor-tool-group {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--lui-editor-tool-gap, 6px);
+}
+.lui-editor-tool-group + .lui-editor-tool-group {
+  border-left: 1px solid var(--lui-edit-line);
+  padding-left: var(--lui-editor-group-gap, 10px);
+}
+.lui-editor-tools [data-command="bold"] {
+  font-weight: 800;
+}
+.lui-editor-tools [data-command="italic"] {
+  font-style: italic;
+}
+.lui-editor-tools [data-command="underline"] {
+  text-decoration: underline;
+}
+.lui-editor-tools [data-command="strike"] {
+  text-decoration: line-through;
+}
+.lui-editor-body {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: var(--lui-editor-min-height, 20rem);
+}
+.lui-editor-rich,
+.lui-editor-preview {
+  box-sizing: border-box;
+  padding: 20px;
+  outline: none;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+  min-width: 0;
+  min-height: inherit;
+}
+.lui-editor-rich:empty::before {
+  content: attr(data-placeholder);
+  color: var(--lui-edit-muted);
+  pointer-events: none;
+}
+.lui-editor-rich > * + *,
+.lui-editor-preview > * + * {
+  margin-top: 0.75em;
+}
+.lui-editor-rich p,
+.lui-editor-preview p {
+  margin-bottom: 0.7em;
+}
+.lui-editor-rich :is(h1, h2, h3, h4, h5, h6),
+.lui-editor-preview :is(h1, h2, h3, h4, h5, h6) {
+  font-weight: 700;
+  line-height: 1.3;
+}
+.lui-editor-rich h1,
+.lui-editor-preview h1 {
+  font-size: 1.8em;
+}
+.lui-editor-rich h2,
+.lui-editor-preview h2 {
+  font-size: 1.4em;
+}
+.lui-editor-rich h3,
+.lui-editor-preview h3 {
+  font-size: 1.15em;
+}
+.lui-editor :is(ul, ol) {
+  padding-left: 1.6em;
+}
+.lui-editor ul {
+  list-style: disc;
+}
+.lui-editor ol {
+  list-style: decimal;
+}
+.lui-editor blockquote {
+  border-left: 3px solid var(--lui-edit-line);
+  padding-left: 1em;
+  color: var(--lui-edit-muted);
+}
+.lui-editor a {
+  color: var(--lui-code-number);
+  text-decoration: underline;
+}
+.lui-editor-rich pre,
+.lui-editor-preview pre {
+  background: var(--lui-edit-soft);
+  border-radius: 6px;
+  padding: 12px;
+  white-space: pre-wrap;
+}
+.lui-editor-source {
+  display: flex;
+  height: var(--lui-editor-min-height, 20rem);
+  min-height: inherit;
+  min-width: 0;
+}
+.lui-editor-code {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+.lui-editor-gutter,
+.lui-editor-paint,
+.lui-editor-input {
+  margin: 0;
+  padding: 12px;
+  border: 0;
+  border-radius: 0;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
+  font-size: 13px !important;
+  font-weight: 400;
+  line-height: 24px !important;
+  letter-spacing: normal;
+  tab-size: var(--lui-tab-size, 2);
+  white-space: pre;
+  font-variant-ligatures: none;
+}
+.lui-editor-gutter {
+  flex: none;
+  color: var(--lui-edit-muted);
+  user-select: none;
+  text-align: right;
+  background: var(--lui-code-gutter, var(--lui-edit-soft));
+  overflow: hidden;
+  min-width: 42px;
+  border-right: 1px solid var(--lui-edit-line);
+}
+.lui-editor-paint,
+.lui-editor-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}
+.lui-editor-paint {
+  pointer-events: none;
+  overflow: hidden;
+  color: var(--lui-edit-text);
+}
+.lui-editor .lui-editor-input {
+  background: transparent;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  caret-color: var(--lui-code-cursor, var(--lui-edit-text));
+  outline: none;
+  resize: none;
+  overflow: auto;
+}
+.lui-editor-input::selection {
+  background: var(--lui-code-selection, rgb(128 128 128 / 30%));
+}
+.lui-editor-input::placeholder {
+  color: var(--lui-edit-muted);
+  -webkit-text-fill-color: var(--lui-edit-muted);
+}
+.lui-editor-search {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid var(--lui-edit-line);
+  padding: 8px 50px 8px 8px;
+}
+.lui-editor-search [data-command="close"] {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  background: var(--lui-edit-soft);
+  font-size: 22px;
+  line-height: 1;
+}
+.lui-editor-search input {
+  background: var(--lui-edit-bg);
+  border: 1px solid var(--lui-edit-line);
+  border-radius: 5px;
+  padding: 6px 8px;
+  min-width: 80px;
+  max-width: 180px;
+}
+.lui-editor-search span {
+  font-size: 11px;
+  color: var(--lui-edit-muted);
+}
+.lui-editor-notice:not(:empty),
+.lui-editor-issues {
+  padding: 8px 12px;
+  border-top: 1px solid var(--lui-edit-line);
+  font-size: 12px;
+}
+.lui-editor-issues {
+  display: grid;
+  max-height: 110px;
+  overflow: auto;
+}
+.lui-editor-issue {
+  text-align: left;
+}
+.lui-editor .lui-editor-issue--error {
+  color: #df737b;
+}
+.lui-editor .lui-editor-issue--warning {
+  color: #bf903a;
+}
+.lui-editor-suggest {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 3;
+  display: grid;
+  max-height: 180px;
+  overflow: auto;
+  min-width: 180px;
+  border: 1px solid var(--lui-edit-line);
+  border-radius: 8px;
+  background: var(--lui-edit-bg);
+  box-shadow: 0 8px 24px #0002;
+}
+.lui-editor-suggest button {
+  text-align: left;
+}
+.lui-editor-suggest [aria-selected="true"] {
+  background: var(--lui-edit-soft);
+}
+.lui-syntax-comment {
+  color: var(--lui-edit-muted);
+}
+.lui-syntax-keyword {
+  color: var(--lui-code-keyword);
+  font-weight: 650;
+}
+.lui-syntax-type {
+  color: var(--lui-code-type);
+}
+.lui-syntax-atom {
+  color: var(--lui-code-atom);
+}
+.lui-syntax-string {
+  color: var(--lui-code-string);
+}
+.lui-syntax-number {
+  color: var(--lui-code-number);
+}
+.lui-syntax-tag {
+  color: var(--lui-code-tag);
+}
+.lui-syntax-function {
+  color: var(--lui-code-function);
+}
+.lui-syntax-attribute,
+.lui-syntax-property {
+  color: var(--lui-code-attribute);
+}
+.lui-syntax-variable {
+  color: var(--lui-edit-text);
+}
+@media (forced-colors: active) {
+  .lui-editor-paint {
+    display: none;
+  }
+  .lui-editor .lui-editor-input {
+    color: CanvasText;
+    -webkit-text-fill-color: CanvasText;
+  }
+}
+.lui-editor--sticky {
+  max-height: 65vh;
+  overflow: auto;
+}
+.lui-editor--sticky > .lui-editor-tools {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.lui-editor-host {
+  min-width: 0;
+  width: 100%;
+}
+.lui-editor-host > .lui-editor-custom {
+  color: var(--lui-text);
+  background: var(--lui-soft);
+  border: 1px solid var(--lui-line);
+  border-radius: var(--lui-radius) var(--lui-radius) 0 0;
+}
+.lui-editor-host:has(> .lui-editor-custom) > div:last-child > .lui-editor {
+  border-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}

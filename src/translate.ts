@@ -1,4 +1,4 @@
-const codeSelector = "code,pre,kbd,samp,.cm-editor,[data-luon-code]";
+const codeSelector = "code,pre,kbd,samp,[data-luon-code]";
 
 function markCode(root: ParentNode) {
   if (root instanceof Element && root.matches(codeSelector)) {
