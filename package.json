@@ -57,7 +57,7 @@
     "@lezer/javascript": "1.5.4",
     "@lezer/json": "1.0.3",
     "@luon/rule": "0.1.3",
-    "@luon/view": "0.1.12",
+    "@luon/view": "0.1.13",
     "lucide": "1.41.0"
   },
   "devDependencies": {
