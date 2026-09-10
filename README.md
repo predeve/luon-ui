@@ -6,6 +6,29 @@ Part of [Luon](https://www.luon.dev) — Native View UI for Luon sites.
 [Source](https://github.com/predeve/luon-ui) ·
 [Developer tools](https://www.luon.dev/tools)
 
+Build a form with explicit components and two-way View binding.
+
+```tsx
+// invite.view.tsx
+import { Button, Input } from "@luon/ui";
+import { r } from "@luon/rule";
+
+export const data = { email: "" };
+const Email = r.email(160).required();
+
+export default () => (
+  <form>
+    <Input bind={data.email} type="email" placeholder="you@example.com" />
+    <Button disabled={!Email.safeParse(data.email).success}>
+      Invite
+    </Button>
+  </form>
+);
+```
+
+Compile with Luon View and load `@luon/ui/style.css` in your entrypoint.
+Read the implementation: [Input](src/input.view.tsx) · [Button](src/button.view.tsx).
+
 ## Install
 
 ```bash
