@@ -29,6 +29,17 @@ export default () => (
 Compile with Luon View and load `@luon/ui/style.css` in your entrypoint.
 Read the implementation: [Input](src/input.view.tsx) · [Button](src/button.view.tsx).
 
+## View's strengths, brought to life
+
+**Luon UI turns View's strengths into finished components, delivering
+Luon's most complete screen development experience.**
+
+[View](https://github.com/predeve/luon-view) is the engine. UI is its
+flagship implementation: reusable components that bring reactive state,
+two-way binding, styling, and lifecycle handling into real application
+screens. Use them together to build an interface, or read their source
+to see how to create your own components with View.
+
 ## Install
 
 ```bash
